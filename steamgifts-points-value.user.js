@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamGifts Points Value (odds & cost per giveaway)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.0
+// @version      1.1.1
 // @description  Works out the real odds of every open SteamGifts giveaway — copies against entries, not the entry count alone — and what those odds cost you in points, so you can see where your balance is worth spending. Adds odds and value per point to each row and to the giveaway page, sorts the listing by value, and shows a widget with your balance, your level and how far the next one is. Filtering by level, library or already-entered is left to the site's own settings, which do it server-side.
 // @match        https://www.steamgifts.com/*
 // @author       g31w0fw0rld
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.1.0';
+    const SCRIPT_VERSION = '1.1.1';
 
     // ------------------------------------------------------------------
     // i18n
@@ -117,7 +117,7 @@
                 '▸ Privacy',
                 'Nothing is sent to the author or to any third party. Everything you see on a page is arithmetic on what that page had already printed.',
                 '⚠ One thing does go to the network, and only when you press it: "Load every page" asks this same site for the pages after this one, with your session, exactly as clicking a page number in its own pagination would. Nothing else leaves your browser.',
-                'What is stored, on your own machine: whether you left the listing sorted by value, whether the widget is folded, the language you picked, whether you asked for the empty gaps to be folded, and your keywords.',
+                'What is stored, on your own machine: your keywords, the language you picked, and how you left the page — sorted by value or not, matches only or not, empty gaps folded or not, which side the widget sits on, and whether the widget and the matches panel are folded.',
             ],
             tipOdds: 'Real odds: {copies} copies shared between {entries} entries.',
             tipOddsOne: 'Real odds: a single copy shared between {entries} entries.',
@@ -222,7 +222,7 @@
                 '▸ Privacidad',
                 'No se envía nada al autor ni a ningún tercero. Todo lo que ves en una página son cuentas sobre lo que esa página ya había impreso.',
                 '⚠ Una sola cosa sale a la red, y solo cuando la pulsas: «Cargar todas las páginas» le pide a este mismo sitio las páginas siguientes a esta, con tu sesión, igual que si pulsaras un número en su propia paginación. Nada más sale de tu navegador.',
-                'Lo que se guarda, en tu propia máquina: si dejaste el listado ordenado por valor, si el widget está plegado, el idioma que elegiste, si pediste plegar los huecos vacíos y tus palabras clave.',
+                'Lo que se guarda, en tu propia máquina: tus palabras clave, el idioma que elegiste y cómo dejaste la página —ordenada por valor o no, solo coincidencias o no, huecos vacíos plegados o no, de qué lado está el widget, y si el widget y el panel de coincidencias están plegados—.',
             ],
             tipOdds: 'Probabilidad real: {copies} copias repartidas entre {entries} entradas.',
             tipOddsOne: 'Probabilidad real: una sola copia repartida entre {entries} entradas.',
@@ -330,6 +330,7 @@
     const JUMP_CLASS = 'sgpv-row--jump';
     const JUMP_MS = 1400;
     const SIDE_KEY = 'sgpv-side';
+    const MMIN_KEY = 'sgpv-mmin';
     const ONLY_KEY = 'sgpv-only';
 
     const nf = new Intl.NumberFormat(LANG === 'es' ? 'es' : 'en');
@@ -1225,10 +1226,31 @@
         // El widget a la derecha (por defecto) deja este a la izquierda.
         panel.classList.toggle('sgpv-m--right', recall(SIDE_KEY) === 'l');
 
+        // Se pliega igual que el widget, y por el mismo motivo: los dos están
+        // fijos y tapan una columna del listado. La diferencia es que aquí la
+        // cuenta se queda VISIBLE al plegar —es el dato que hace falta de un
+        // vistazo—, así que la cabecera sigue diciendo «Tus coincidencias 7»
+        // con la lista recogida.
+        panel.classList.toggle('sgpv-m--min', recall(MMIN_KEY) === '1');
+
         const head = el('div', 'sgpv-m__head');
         head.appendChild(el('span', 'sgpv-m__title', t('matches')));
-        head.appendChild(el('span', 'sgpv-m__count', nf.format(hits.length)));
         head.title = t('matchesTip');
+        // La cuenta y el botón en su propio grupo: con `space-between` y tres
+        // hijos sueltos, la cuenta se quedaba flotando en el centro.
+        const side = el('span', 'sgpv-m__side');
+        side.appendChild(el('span', 'sgpv-m__count', nf.format(hits.length)));
+        const min = el('button', 'sgpv-m__min', recall(MMIN_KEY) === '1' ? '+' : '–');
+        min.type = 'button';
+        min.title = t('minimise');
+        min.addEventListener('click', () => {
+            const now = recall(MMIN_KEY) !== '1';
+            store(MMIN_KEY, now ? '1' : null);
+            panel.classList.toggle('sgpv-m--min', now);
+            min.textContent = now ? '+' : '–';
+        });
+        side.appendChild(min);
+        head.appendChild(side);
         panel.appendChild(head);
 
         const body = el('div', 'sgpv-m__body');
@@ -1637,6 +1659,11 @@
             'border-radius:5px 5px 0 0;cursor:help;}',
             '#' + MATCH_ID + ' .sgpv-m__title{font-weight:700;letter-spacing:.02em;}',
             '#' + MATCH_ID + ' .sgpv-m__count{font-weight:700;color:#ffcf66;}',
+            '#' + MATCH_ID + ' .sgpv-m__side{display:flex;align-items:center;gap:7px;}',
+            '#' + MATCH_ID + ' .sgpv-m__min{cursor:pointer;background:transparent;border:0;',
+            'color:#9aa4b2;font-size:15px;line-height:1;padding:0 2px;}',
+            '#' + MATCH_ID + ' .sgpv-m__min:hover{color:#fff;}',
+            '#' + MATCH_ID + '.sgpv-m--min .sgpv-m__body{display:none;}',
             '#' + MATCH_ID + ' .sgpv-m__body{overflow-y:auto;min-height:0;padding:6px;',
             'overscroll-behavior:contain;}',
             '#' + MATCH_ID + ' .sgpv-m__item{display:block;width:100%;text-align:left;',
