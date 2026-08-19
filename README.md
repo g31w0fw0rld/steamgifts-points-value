@@ -2,9 +2,9 @@
 
 Tampermonkey userscript that works out the real odds of every SteamGifts giveaway and what they cost you in points. / Userscript de Tampermonkey que calcula la probabilidad real de cada sorteo de SteamGifts y lo que te cuesta en puntos.
 
-![The listing sorted by value, with odds and value per point on every row and the widget in the corner](docs/screenshot-listing.png)
+![The listing with four more pages loaded into it and sorted by value: odds and value per point on every row, the widget on one side and the matches panel on the other](docs/screenshot-listing.png)
 
-*The listing: odds and value per point on every row, sorted best-first, and the widget with your balance, your level, what is within reach and your keywords. / El listado: probabilidad y valor por punto en cada fila, ordenado de mejor a peor, y el widget con tu saldo, tu nivel, lo que te alcanza y tus palabras clave.*
+*The listing, with the four pages after this one pulled into it: 201 giveaways ranked together, odds and value per point on every row, the widget with your balance, your level, what is within reach and your keywords, and on the opposite side the panel listing the seven matches — click one and it jumps there. / El listado, con las cuatro páginas siguientes traídas a esta: 201 sorteos valorados juntos, probabilidad y valor por punto en cada fila, el widget con tu saldo, tu nivel, lo que te alcanza y tus palabras clave, y al otro lado el panel que lista las siete coincidencias —pulsa una y salta a ella—.*
 
 ![A single-copy giveaway page: 25P, 3,429 entries, badge reading 1 in 3,429 and under 0.01%/P](docs/screenshot-giveaway-single.png)
 
