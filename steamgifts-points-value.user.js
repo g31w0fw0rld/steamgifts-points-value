@@ -59,7 +59,14 @@
             toNext: '${v} to Level {n}',
             maxLevel: 'top level',
             counts: '{n} giveaways · {afford} within reach',
+            countsOne: '1 giveaway · {afford} within reach',
             noRows: 'no giveaways on this page',
+            sortTip: 'Puts the listing best-first by value per point. Featured stay in their own section, and the site\u2019s own blocks keep their place.',
+            aboutTip: 'What each number means, what the colours say and which site settings this assumes.',
+            langTip: 'English and Spanish only: the site itself exists in one language. Auto follows your browser.',
+            levelTip: 'Your contributor level and the giveaway value still missing for the next one.',
+            countsTip: 'Giveaways on this page, and how many your current balance covers.',
+            bestTip: 'The best value per point on this page, ignoring the ones your level cannot reach.',
             bestIs: 'Best: {odds} · {value}',
             sortValue: 'Sort by value',
             sortSite: '✓ Sorted by value — undo',
@@ -72,6 +79,7 @@
             kwPlaceholder: 'keyword, -keyword, several, at once',
             kwHint: 'Enter to add — commas separate several at once · click a keyword to search the site for it · × removes it',
             kwCount: '{n} match your keywords',
+            kwCountOne: '1 match for your keywords',
             kwNone: 'nothing matches your keywords',
             kwSearchTip: 'Search SteamGifts for "{k}"',
             kwDelTip: 'Remove',
@@ -103,6 +111,7 @@
                 'Nothing is sent anywhere and no network request is made: everything shown is arithmetic on what the page already printed. Only your sort choice, whether the widget is folded and the language you picked are stored, on your own machine.',
             ],
             tipOdds: 'Real odds: {copies} copies shared between {entries} entries.',
+            tipOddsOne: 'Real odds: a single copy shared between {entries} entries.',
             tipCost: 'Costs {points}P, so each point buys {v}% of a chance.',
             tipFree: 'Costs no points.',
             tipLevel: 'Your level does not reach this one.',
@@ -119,7 +128,14 @@
             toNext: '{v} $ para el nivel {n}',
             maxLevel: 'nivel máximo',
             counts: '{n} sorteos · {afford} a tu alcance',
+            countsOne: '1 sorteo · {afford} a tu alcance',
             noRows: 'no hay sorteos en esta página',
+            sortTip: 'Ordena el listado de mejor a peor por valor por punto. Los destacados se quedan en su sección y los bloques del sitio no se mueven de sitio.',
+            aboutTip: 'Qué significa cada número, qué dicen los colores y qué ajustes del sitio da por supuestos.',
+            langTip: 'Solo inglés y español: el sitio existe en un idioma. Automático sigue al navegador.',
+            levelTip: 'Tu nivel de contribuidor y el valor en sorteos que falta para el siguiente.',
+            countsTip: 'Sorteos de esta página y a cuántos llega tu saldo actual.',
+            bestTip: 'El mejor valor por punto de esta página, sin contar los que tu nivel no alcanza.',
             bestIs: 'Mejor: {odds} · {value}',
             sortValue: 'Ordenar por valor',
             sortSite: '✓ Ordenado por valor — deshacer',
@@ -132,6 +148,7 @@
             kwPlaceholder: 'palabra, -palabra, varias, de una vez',
             kwHint: 'Intro para añadir —las comas separan varias de una vez— · pulsa una palabra para buscarla en el sitio · × la quita',
             kwCount: '{n} coinciden con tus palabras',
+            kwCountOne: '1 coincide con tus palabras',
             kwNone: 'nada coincide con tus palabras',
             kwSearchTip: 'Buscar «{k}» en SteamGifts',
             kwDelTip: 'Quitar',
@@ -163,6 +180,7 @@
                 'No se envía nada a ninguna parte ni se hace ninguna petición de red: todo lo que ves son cuentas sobre lo que la página ya había impreso. Solo se guardan tu elección de orden, si el widget está plegado y el idioma que elegiste, en tu propia máquina.',
             ],
             tipOdds: 'Probabilidad real: {copies} copias repartidas entre {entries} entradas.',
+            tipOddsOne: 'Probabilidad real: una sola copia repartida entre {entries} entradas.',
             tipCost: 'Cuesta {points}P, así que cada punto compra un {v}% de posibilidad.',
             tipFree: 'No cuesta puntos.',
             tipLevel: 'Tu nivel no llega a este.',
@@ -176,6 +194,12 @@
         if (s === undefined) return key;
         if (vars) for (const k of Object.keys(vars)) s = s.split('{' + k + '}').join(vars[k]);
         return s;
+    }
+
+    // La mayoría de los sorteos son de copia única, así que el singular no es
+    // un caso raro: sin esto se leía "1 copias repartidas" y "1 coinciden".
+    function tn(n, key) {
+        return t(n === 1 ? key + 'One' : key, arguments[2]);
     }
 
     // ------------------------------------------------------------------
@@ -356,7 +380,7 @@
     }
 
     function tooltipFor(g) {
-        const lines = [t('tipOdds', { copies: nf.format(g.copies), entries: nf.format(g.entries) })];
+        const lines = [tn(g.copies, 'tipOdds', { copies: nf.format(g.copies), entries: nf.format(g.entries) })];
         lines.push(g.perPoint === null
             ? t('tipFree')
             : t('tipCost', { points: nf.format(g.points), v: fmtPct(g.perPoint * 100) }));
@@ -541,22 +565,30 @@
             }
             body.appendChild(amount);
             const lvl = levelLine(acc);
-            if (lvl) body.appendChild(el('div', 'sgpv-w__line', lvl));
+            if (lvl) {
+                const lvlEl = el('div', 'sgpv-w__line', lvl);
+                lvlEl.title = t('levelTip');
+                body.appendChild(lvlEl);
+            }
         }
 
         if (plain.length) {
             const afford = plain.filter(g => !g.levelBlocked && g.points <= acc.points).length;
-            body.appendChild(el('div', 'sgpv-w__line', t('counts', {
+            const countEl = el('div', 'sgpv-w__line', tn(plain.length, 'counts', {
                 n: nf.format(plain.length), afford: nf.format(afford),
-            })));
+            }));
+            countEl.title = t('countsTip');
+            body.appendChild(countEl);
         } else {
             body.appendChild(el('div', 'sgpv-w__line', t('noRows')));
         }
 
         if (best) {
-            body.appendChild(el('div', 'sgpv-w__line sgpv-w__line--best', t('bestIs', {
+            const bestEl = el('div', 'sgpv-w__line sgpv-w__line--best', t('bestIs', {
                 odds: fmtOdds(best), value: fmtPerPoint(best),
-            })));
+            }));
+            bestEl.title = t('bestTip');
+            body.appendChild(bestEl);
         }
 
         const sortBtn = el('button', 'sgpv-w__btn');
@@ -585,6 +617,7 @@
 
         const aboutBtn = el('button', 'sgpv-w__btn sgpv-w__btn--ghost', t('about'));
         aboutBtn.type = 'button';
+        aboutBtn.title = t('aboutTip');
         aboutBtn.addEventListener('click', showAboutModal);
         body.appendChild(aboutBtn);
 
@@ -644,7 +677,7 @@
             // página mientras el widget decía que no había ninguna.
             const hits = list.filter(g => g.kw).length;
             kwWrap.appendChild(el('div', 'sgpv-w__line' + (hits ? ' sgpv-w__line--kw' : ''),
-                hits ? t('kwCount', { n: nf.format(hits) }) : t('kwNone')));
+                hits ? tn(hits, 'kwCount', { n: nf.format(hits) }) : t('kwNone')));
         }
         body.appendChild(kwWrap);
 
@@ -662,6 +695,7 @@
         body.appendChild(holesRow);
 
         const langRow = el('div', 'sgpv-w__lang');
+        langRow.title = t('langTip');
         langRow.appendChild(el('span', null, t('language')));
         const sel = el('select');
         [['', t('auto')], ['es', 'Español'], ['en', 'English']].forEach(([v, txt]) => {
@@ -889,6 +923,134 @@
     }
 
     // ------------------------------------------------------------------
+    // Tooltip propio
+    // ------------------------------------------------------------------
+    // Sustituye al del navegador dentro del widget y en los badges. Va por
+    // delegación y leyendo el `title` que los controles ya llevan puestos, en
+    // vez de engancharse a cada uno: el widget se repinta entero en cada
+    // pasada, así que cualquier enganche por elemento se perdería.
+    //
+    // Mientras la caja está arriba, el `title` se guarda en TIP_STASH y se
+    // quita del elemento —es lo que evita ver los dos avisos, el nuestro y el
+    // del sistema, uno encima del otro—. Al cerrarla se devuelve, así que el
+    // `title` sigue estando para el nombre accesible y como respaldo si algo
+    // falla.
+    const TIP_ID = 'sgpv-tip';
+    const TIP_STASH = 'data-sgpv-tip';
+    const TIP_DELAY_MS = 250;
+    const TIP_GAP = 10;
+    const TIP_MARGIN = 8;
+    // Un elemento deja de casar con [title] en cuanto se le guarda el aviso,
+    // así que el escondite entra también en el selector: sin él, volver a
+    // entrar en el mismo control se leería como salir de la zona con tooltip.
+    const TIP_SELECTOR = '[title], [' + TIP_STASH + ']';
+    const TIP_SCOPE = '#' + WIDGET_ID + ', .' + BADGE_CLASS;
+
+    let tipEl = null;
+    let tipAnchor = null;
+    let tipPending = null;
+    let tipTimer = null;
+    let tipBound = false;
+
+    function ensureTipNode() {
+        if (tipEl && tipEl.isConnected) return tipEl;
+        tipEl = el('div');
+        tipEl.id = TIP_ID;
+        tipEl.setAttribute('role', 'tooltip');
+        document.body.appendChild(tipEl);
+        return tipEl;
+    }
+
+    // Dos reglas según dónde viva el control, porque el sitio libre no está en
+    // el mismo lado: los del widget salen a su izquierda y alineados entre sí
+    // —el widget está pegado al borde, así que anclando a él los avisos no
+    // bailan—; los badges, encima de la fila, y debajo si arriba no cabe.
+    function positionTip(anchor) {
+        const inWidget = !!anchor.closest('#' + WIDGET_ID);
+        const scope = inWidget ? document.getElementById(WIDGET_ID) : anchor;
+        const box = tipEl.getBoundingClientRect();
+        const a = anchor.getBoundingClientRect();
+        const s = scope.getBoundingClientRect();
+        const vw = document.documentElement.clientWidth;
+        const vh = document.documentElement.clientHeight;
+
+        let left, top;
+        if (inWidget) {
+            left = s.left - box.width - TIP_GAP;
+            if (left < TIP_MARGIN) left = s.right + TIP_GAP;
+            top = a.top + a.height / 2 - box.height / 2;
+        } else {
+            left = a.left + a.width / 2 - box.width / 2;
+            top = a.top - box.height - TIP_GAP;
+            if (top < TIP_MARGIN) top = Math.min(a.bottom + TIP_GAP, vh - box.height - TIP_MARGIN);
+        }
+        tipEl.style.left = Math.max(TIP_MARGIN, Math.min(left, vw - box.width - TIP_MARGIN)) + 'px';
+        tipEl.style.top = Math.max(TIP_MARGIN, Math.min(top, vh - box.height - TIP_MARGIN)) + 'px';
+    }
+
+    function showTip(anchor) {
+        if (!anchor.isConnected) return;  // el widget se repintó durante el retardo
+        const text = anchor.getAttribute('title') || anchor.getAttribute(TIP_STASH);
+        if (!text) return;
+        ensureTipNode();
+        tipEl.textContent = text;
+        anchor.setAttribute(TIP_STASH, text);
+        anchor.removeAttribute('title');
+        tipAnchor = anchor;
+        // Primero texto y posición, y solo después visible: si no, la caja
+        // aparece un fotograma en la esquina anterior antes de recolocarse.
+        positionTip(anchor);
+        tipEl.classList.add('sgpv-tip--on');
+    }
+
+    function hideTip() {
+        clearTimeout(tipTimer);
+        tipTimer = null;
+        tipPending = null;
+        if (tipAnchor) {
+            const stashed = tipAnchor.getAttribute(TIP_STASH);
+            if (stashed != null && !tipAnchor.title) tipAnchor.title = stashed;
+            tipAnchor.removeAttribute(TIP_STASH);
+            tipAnchor = null;
+        }
+        if (tipEl) tipEl.classList.remove('sgpv-tip--on');
+    }
+
+    function tipTargetFrom(node) {
+        if (!node || !node.closest) return null;
+        const target = node.closest(TIP_SELECTOR);
+        return target && target.closest(TIP_SCOPE) ? target : null;
+    }
+
+    function tipEnter(target) {
+        if (!target) { if (tipAnchor || tipPending) hideTip(); return; }
+        if (target === tipAnchor || target === tipPending) return;
+        hideTip();
+        tipPending = target;
+        tipTimer = setTimeout(() => { tipPending = null; showTip(target); }, TIP_DELAY_MS);
+    }
+
+    function initTooltips() {
+        if (tipBound) return;
+        tipBound = true;
+        // mouseover salta en CADA elemento al que se entra, también en los que
+        // no llevan aviso: por eso cierra la caja el simple hecho de salir del
+        // control, sin necesidad de un mouseout aparte.
+        document.addEventListener('mouseover', ev => tipEnter(tipTargetFrom(ev.target)));
+        document.addEventListener('mouseleave', hideTip);
+        // Por teclado sale sin retardo: llegar tabulando ya es intención.
+        document.addEventListener('focusin', ev => {
+            const target = tipTargetFrom(ev.target);
+            hideTip();
+            if (target) showTip(target);
+        });
+        document.addEventListener('focusout', hideTip);
+        window.addEventListener('scroll', hideTip, { passive: true, capture: true });
+        window.addEventListener('resize', hideTip, { passive: true });
+        document.addEventListener('click', hideTip, true);
+    }
+
+    // ------------------------------------------------------------------
     // Estilos
     // ------------------------------------------------------------------
     // Paleta del propio SteamGifts: la barra oscura de su cabecera, su azul
@@ -937,7 +1099,22 @@
             // display:flex el <span> se comprimía hasta partir la etiqueta en
             // tres líneas con la casilla suelta a un lado. Cada pieza lleva
             // aquí su tamaño y su comportamiento de flex, sin heredar nada.
-            '.sgpv-row--kw > .giveaway__row-inner-wrap{background:rgba(255,207,102,.16);}',
+            // Marco completo y no un fondo tenue: sobre el gris del listado, un
+            // amarillo al 16% se perdía. El de "mejor valor" es una barra a la
+            // izquierda, así que cuando una fila es las dos cosas se ven ambas.
+            '.sgpv-row--kw > .giveaway__row-inner-wrap{background:rgba(255,207,102,.28);',
+            'box-shadow:inset 0 0 0 2px #e0a92e;}',
+            '.sgpv-row--kw.sgpv-row--best > .giveaway__row-inner-wrap{',
+            'box-shadow:inset 0 0 0 2px #e0a92e, inset 5px 0 0 #3d8b37;}',
+            '#' + TIP_ID + '{position:fixed;z-index:100002;max-width:290px;padding:8px 10px;',
+            'background:#3a4655;color:#f2f5f9;border:1px solid #4b72d4;border-radius:6px;',
+            'box-shadow:0 4px 16px rgba(0,0,0,.55);font-family:system-ui,sans-serif;',
+            // pre-line y no normal: los avisos de los badges vienen en varias
+            // líneas y con `normal` se leerían todas seguidas.
+            'font-size:12px;line-height:1.4;white-space:pre-line;pointer-events:none;',
+            'opacity:0;transition:opacity .12s ease;}',
+            '#' + TIP_ID + '.sgpv-tip--on{opacity:1;}',
+            '.' + BADGE_CLASS + '[' + TIP_STASH + ']{cursor:help;}',
             '#' + WIDGET_ID + ' .sgpv-w__kw{margin-top:10px;}',
             '#' + WIDGET_ID + ' .sgpv-w__kw-input{width:100%;box-sizing:border-box;font:inherit;',
             'padding:4px 7px;border-radius:4px;border:1px solid #4a5568;background:#1f2733;',
@@ -1071,6 +1248,7 @@
     function run() {
         const list = collect();
         injectCss();
+        initTooltips();
         const kws = readKeywords();
         list.forEach(g => { g.kw = matchesKeywords(g.name, kws); });
         rankAll(list);
