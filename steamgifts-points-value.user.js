@@ -1798,6 +1798,24 @@
         return true;
     }
 
+    // Un bloque ya plegado no se vuelve a medir, y esa es la clave: con
+    // `display:none` mide 0 de alto, así que `showsNothing()` contestaba "aquí
+    // no hay hueco" y la rama de abajo lo desplegaba. Cada pasada invertía el
+    // estado de todos: el síntoma era que los huecos aparecían al marcar
+    // cualquier casilla del widget y desaparecían al desmarcarla.
+    //
+    // Para uno ya plegado la única pregunta que queda es si el banner acabó
+    // cargando, y eso se responde SIN layout: `naturalWidth` funciona con el
+    // nodo oculto. Es justo el caso que hay que cazar, porque el propio
+    // SteamGifts le quita la clase `hide` al banner de bundle en su `onload`
+    // cuando el anuncio viene vacío.
+    function hasLoadedImage(node) {
+        for (const img of node.querySelectorAll('img')) {
+            if (img.naturalWidth > 0) return true;
+        }
+        return false;
+    }
+
     function foldEmptyBlocks(list) {
         const host = list.find(g => !g.pinned && g.row.parentElement);
         if (!host) return 0;
@@ -1806,13 +1824,15 @@
         Array.from(host.row.parentElement.children).forEach(node => {
             if (node.classList.contains('giveaway__row-outer-wrap')) return;
             if (node.id === WIDGET_ID) return;
-            if (on && showsNothing(node)) {
+            const wasFolded = node.dataset.sgpvFolded === '1';
+            const fold = on && (wasFolded ? !hasLoadedImage(node) : showsNothing(node));
+            if (fold) {
                 node.dataset.sgpvFolded = '1';
                 node.style.display = 'none';
                 folded++;
-            } else if (node.dataset.sgpvFolded === '1') {
+            } else if (wasFolded) {
                 // Se devuelve a su sitio al apagar la casilla, y también si el
-                // banner acaba cargando más tarde.
+                // banner acabó cargando más tarde.
                 delete node.dataset.sgpvFolded;
                 node.style.display = '';
             }
