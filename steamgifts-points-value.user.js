@@ -2,7 +2,7 @@
 // @name         SteamGifts Points Value (odds & cost per giveaway)
 // @namespace    http://tampermonkey.net/
 // @version      1.0.0
-// @description  Works out the real odds of every open SteamGifts giveaway — copies against entries, not the entry count alone — and what those odds cost you in points, so you can see where your balance is worth spending. Adds odds and value per point to each row, sorts the listing by value, and shows a widget with your balance, your level and how far the next one is. Filtering by level, library or already-entered is left to the site's own settings, which do it server-side.
+// @description  Works out the real odds of every open SteamGifts giveaway — copies against entries, not the entry count alone — and what those odds cost you in points, so you can see where your balance is worth spending. Adds odds and value per point to each row and to the giveaway page, sorts the listing by value, and shows a widget with your balance, your level and how far the next one is. Filtering by level, library or already-entered is left to the site's own settings, which do it server-side.
 // @match        https://www.steamgifts.com/*
 // @author       g31w0fw0rld
 // @license      MIT
@@ -96,6 +96,7 @@
                 '▸ What it works out',
                 'Odds are copies ÷ entries: SteamGifts prints how many people entered, but the copies are what decides your chance, and a row without a copies label is a single copy.',
                 'Value is those odds ÷ what the giveaway costs, shown as a percentage per point: how much of a chance each point buys. That is the number that says where a full balance is worth spending, and no page on the site shows it.',
+                'Inside a giveaway it reads that one too: the same odds and value next to its title and in the widget, plus what your balance is left at if you enter. There is nothing else on that page to compare against, so that badge carries no ranking colour.',
                 '▸ What the colours mean',
                 '• Green — the best quarter of this page.',
                 '• Blue — the middle of the pack.',
@@ -118,6 +119,18 @@
             tipCost: 'Costs {points}P, so each point buys {v}% of a chance.',
             tipFree: 'Costs no points.',
             tipLevel: 'Your level does not reach this one.',
+            gaHead: 'This giveaway',
+            gaCopies: '{copies} copies · {entries} entries',
+            gaCopiesOne: 'a single copy · {entries} entries',
+            gaValueTip: 'Odds and value of the giveaway you are looking at, worked out exactly as in the listing: copies against entries, and that chance divided by what it costs.',
+            gaSolo: 'There is only one giveaway on this page, so the colour ranks nothing here.',
+            gaLeft: 'Costs {points}P · {left}P left if you enter',
+            gaShort: 'Costs {points}P · {miss}P short',
+            gaSpent: 'Cost {points}P, already off your balance',
+            gaCostTip: 'What your balance is left at if you enter, or how many points you are still missing.',
+            gaFree: 'Costs no points',
+            gaIn: '✓ You are already in',
+            gaKwHit: 'Matches your keywords',
         },
         es: {
             oneIn: '1 de {n}',
@@ -168,6 +181,7 @@
                 '▸ Qué calcula',
                 'La probabilidad es copias ÷ entradas: SteamGifts imprime cuánta gente entró, pero son las copias las que deciden tu opción, y una fila sin etiqueta de copias es de copia única.',
                 'El valor es esa probabilidad ÷ lo que cuesta el sorteo, en porcentaje por punto: cuánta posibilidad compra cada punto. Ese es el número que dice dónde conviene gastar un saldo lleno, y no aparece en ninguna página del sitio.',
+                'Dentro de un sorteo lee también ese: la misma probabilidad y el mismo valor junto a su título y en el widget, además de en cuánto queda tu saldo si entras. Ahí no hay nada con lo que comparar, así que esa píldora no lleva color de rango.',
                 '▸ Qué dicen los colores',
                 '• Verde: el mejor cuarto de esta página.',
                 '• Azul: el término medio.',
@@ -190,6 +204,18 @@
             tipCost: 'Cuesta {points}P, así que cada punto compra un {v}% de posibilidad.',
             tipFree: 'No cuesta puntos.',
             tipLevel: 'Tu nivel no llega a este.',
+            gaHead: 'Este sorteo',
+            gaCopies: '{copies} copias · {entries} entradas',
+            gaCopiesOne: 'una sola copia · {entries} entradas',
+            gaValueTip: 'Probabilidad y valor del sorteo que estás viendo, calculados igual que en el listado: copias contra entradas, y esa posibilidad dividida entre lo que cuesta.',
+            gaSolo: 'En esta página solo hay un sorteo, así que aquí el color no ordena nada.',
+            gaLeft: 'Cuesta {points}P · te quedan {left}P si entras',
+            gaShort: 'Cuesta {points}P · te faltan {miss}P',
+            gaSpent: 'Costó {points}P, ya descontados de tu saldo',
+            gaCostTip: 'En cuánto queda tu saldo si entras, o los puntos que aún te faltan.',
+            gaFree: 'No cuesta puntos',
+            gaIn: '✓ Ya estás dentro',
+            gaKwHit: 'Coincide con tus palabras clave',
         },
     };
 
@@ -221,6 +247,16 @@
         level: '.giveaway__column--contributor-level',
         levelBad: 'giveaway__column--contributor-level--negative',
         navPoints: '.nav__points',
+        // Ficha de la página de un sorteo: el mismo dato repartido en otros
+        // tres sitios —la cabecera destacada, el contador de la barra lateral
+        // y el botón de entrar—.
+        gaHeading: '.featured__heading',
+        gaName: '.featured__heading__medium',
+        gaSmall: '.featured__heading__small',
+        gaEntries: '.live__entry-count',
+        gaEnter: '.sidebar__entry-insert',
+        gaRemove: '.sidebar__entry-delete',
+        gaPoints: '.sidebar__entry__points',
     };
 
     // Tope de puntos de la cuenta: por encima no se acumula nada.
@@ -288,6 +324,30 @@
         return { points, level, value };
     }
 
+    // Las dos etiquetas que el sitio imprime entre paréntesis. Ancladas al
+    // nodo entero en el listado, donde cada una tiene el suyo.
+    const RE_POINTS = /^\(\s*([\d,.]+)\s*P\s*\)$/i;
+    const RE_COPIES = /^\(\s*([\d,.]+)\s*Cop(?:y|ies)\s*\)$/i;
+    // En la cabecera de la página de un sorteo no está confirmado en qué nodo
+    // cae la etiqueta de copias —los sorteos de copia única, que son casi
+    // todos, no la imprimen—, así que ahí se busca dentro del texto de la
+    // cabecera entera y sin anclar.
+    const RE_COPIES_LOOSE = /\(\s*([\d,.]+)\s*Cop(?:y|ies)\s*\)/i;
+
+    // La aritmética de un sorteo en un solo sitio: la comparten una fila del
+    // listado y la ficha de la página de un sorteo, que traen los mismos tres
+    // datos leídos de sitios distintos.
+    function derive(points, copies, entries) {
+        // Sin entradas todavía, la siguiente en llegar se lleva una copia:
+        // la probabilidad es 1, no una división por cero.
+        const odds = entries > 0 ? Math.min(1, copies / entries) : 1;
+        return {
+            points, copies, entries, odds,
+            oneIn: entries > 0 ? entries / copies : 1,
+            perPoint: points > 0 ? odds / points : null,
+        };
+    }
+
     function parseRow(row) {
         const name = row.querySelector(SEL.name);
         if (!name) return null;
@@ -298,9 +358,9 @@
         let copies = 1;
         row.querySelectorAll(SEL.thin).forEach(el => {
             const text = el.textContent.trim();
-            const p = text.match(/^\(\s*([\d,.]+)\s*P\s*\)$/i);
+            const p = text.match(RE_POINTS);
             if (p) { points = toNumber(p[1]); return; }
-            const c = text.match(/^\(\s*([\d,.]+)\s*Cop(?:y|ies)\s*\)$/i);
+            const c = text.match(RE_COPIES);
             if (c) copies = Math.max(1, toNumber(c[1]));
         });
         if (points === null) return null;
@@ -311,17 +371,54 @@
         const levelEl = row.querySelector(SEL.level);
         const levelBlocked = !!(levelEl && levelEl.classList.contains(SEL.levelBad));
 
-        // Sin entradas todavía, la siguiente en llegar se lleva una copia:
-        // la probabilidad es 1, no una división por cero.
-        const odds = entries > 0 ? Math.min(1, copies / entries) : 1;
-        const oneIn = entries > 0 ? entries / copies : 1;
-        const perPoint = points > 0 ? odds / points : null;
-
-        return {
-            row, name: name.textContent.trim(), points, copies, entries,
-            levelBlocked, odds, oneIn, perPoint,
+        return Object.assign(derive(points, copies, entries), {
+            row, name: name.textContent.trim(), levelBlocked,
             pinned: !!row.closest(SEL.pinned),
-        };
+        });
+    }
+
+    // La ficha de la página de un sorteo. Los mismos tres números que en una
+    // fila, pero repartidos: el coste en la cabecera destacada (y en el botón
+    // de entrar, como respaldo), las entradas en el contador de la barra
+    // lateral —que el sitio refresca solo, de ahí su clase `live__`— y las
+    // copias, si hay más de una, en la propia cabecera.
+    function parseSingle() {
+        if (!isSinglePage()) return null;
+        const heading = document.querySelector(SEL.gaHeading);
+        if (!heading) return null;
+
+        let points = null;
+        heading.querySelectorAll(SEL.gaSmall).forEach(node => {
+            const m = node.textContent.trim().match(RE_POINTS);
+            if (m) points = toNumber(m[1]);
+        });
+        if (points === null) {
+            // El botón de la barra lateral dice lo mismo: "(10P)". Sirve de
+            // respaldo si la cabecera cambia de maquetación.
+            const side = document.querySelector(SEL.gaPoints);
+            const m = side && side.textContent.trim().match(RE_POINTS);
+            if (m) points = toNumber(m[1]);
+        }
+        if (points === null) return null;
+
+        const c = heading.textContent.match(RE_COPIES_LOOSE);
+        const copies = c ? Math.max(1, toNumber(c[1])) : 1;
+
+        const entriesEl = document.querySelector(SEL.gaEntries);
+        const entries = entriesEl ? toNumber(entriesEl.textContent) : 0;
+
+        // Solo se afirma lo que se ve: el botón de quitar la entrada existe
+        // siempre, oculto con la clase del sitio mientras no estés dentro, y
+        // se usa en positivo. Si un día no estuviera, el widget calla en vez
+        // de dar por hecho que no has entrado.
+        const remove = document.querySelector(SEL.gaRemove);
+        const entered = !!(remove && !remove.classList.contains('is-hidden'));
+
+        const nameEl = heading.querySelector(SEL.gaName);
+        return Object.assign(derive(points, copies, entries), {
+            heading, entered, levelBlocked: false, pinned: false,
+            name: nameEl ? nameEl.textContent.trim() : (document.title || '').trim(),
+        });
     }
 
     // ------------------------------------------------------------------
@@ -426,6 +523,25 @@
         badge.className = BADGE_CLASS + ' ' + BADGE_CLASS + '--' + (g.tier || 'mid');
     }
 
+    // La misma píldora que en el listado, junto al título de la ficha. Se
+    // cuela detrás de la última etiqueta entre paréntesis —el coste— para
+    // quedar antes de los iconos del sitio, y no lleva color de rango: el
+    // color compara con los demás sorteos de la página y aquí no hay otros,
+    // así que se queda en el azul base y el aviso lo dice.
+    function paintSingle(g) {
+        let badge = g.heading.querySelector('.' + BADGE_CLASS);
+        if (!badge) {
+            badge = document.createElement('span');
+            const smalls = g.heading.querySelectorAll(SEL.gaSmall);
+            const anchor = smalls.length ? smalls[smalls.length - 1] : null;
+            if (anchor) anchor.insertAdjacentElement('afterend', badge);
+            else g.heading.appendChild(badge);
+        }
+        badge.className = BADGE_CLASS + ' ' + BADGE_CLASS + '--solo';
+        badge.textContent = fmtOdds(g) + ' · ' + fmtPerPoint(g);
+        badge.title = tooltipFor(g) + '\n' + t('gaSolo');
+    }
+
     // ------------------------------------------------------------------
     // Orden
     // ------------------------------------------------------------------
@@ -520,7 +636,22 @@
         return node;
     }
 
-    function buildWidget(list) {
+    function buildHolesCheck(body) {
+        const holesRow = el('label', 'sgpv-w__check');
+        const holesBox = el('input');
+        holesBox.type = 'checkbox';
+        holesBox.checked = recall(HOLES_KEY) === '1';
+        holesBox.addEventListener('change', () => {
+            store(HOLES_KEY, holesBox.checked ? '1' : null);
+            foldEmptyBlocks(collect());
+        });
+        holesRow.appendChild(holesBox);
+        holesRow.appendChild(el('span', null, t('holes')));
+        holesRow.title = t('holesTip');
+        body.appendChild(holesRow);
+    }
+
+    function buildWidget(list, solo) {
         const acc = readAccount();
         const plain = list.filter(g => !g.pinned);
         const best = bestOf(plain);
@@ -578,7 +709,41 @@
             }
         }
 
-        if (plain.length) {
+        // En la página de un sorteo no hay listado que contar ni que ordenar:
+        // el hueco lo ocupa la ficha de ese sorteo, con lo mismo que dice su
+        // píldora más lo que le pasa a tu saldo si entras.
+        if (solo) {
+            const wrap = el('div', 'sgpv-w__solo');
+            wrap.appendChild(el('div', 'sgpv-w__solo-head', t('gaHead')));
+            const valEl = el('div', 'sgpv-w__solo-val', fmtOdds(solo) + ' · ' + fmtPerPoint(solo));
+            valEl.title = t('gaValueTip');
+            wrap.appendChild(valEl);
+            wrap.appendChild(el('div', 'sgpv-w__line', tn(solo.copies, 'gaCopies', {
+                copies: nf.format(solo.copies), entries: nf.format(solo.entries),
+            })));
+            const costEl = el('div', 'sgpv-w__line');
+            if (solo.entered) {
+                // Ya dentro, el saldo de arriba YA no tiene esos puntos: decir
+                // "te quedan 390P si entras" sería contarlos dos veces.
+                wrap.appendChild(el('div', 'sgpv-w__line sgpv-w__line--best', t('gaIn')));
+                costEl.textContent = t('gaSpent', { points: nf.format(solo.points) });
+            } else if (solo.points === 0) {
+                costEl.textContent = t('gaFree');
+            } else if (solo.points <= acc.points) {
+                costEl.textContent = t('gaLeft', {
+                    points: nf.format(solo.points), left: nf.format(acc.points - solo.points),
+                });
+            } else {
+                costEl.textContent = t('gaShort', {
+                    points: nf.format(solo.points), miss: nf.format(solo.points - acc.points),
+                });
+                costEl.classList.add('sgpv-w__line--short');
+            }
+            costEl.title = t('gaCostTip');
+            wrap.appendChild(costEl);
+            if (solo.kw) wrap.appendChild(el('div', 'sgpv-w__line sgpv-w__line--kw', t('gaKwHit')));
+            body.appendChild(wrap);
+        } else if (plain.length) {
             const afford = plain.filter(g => !g.levelBlocked && g.points <= acc.points).length;
             const countEl = el('div', 'sgpv-w__line', tn(plain.length, 'counts', {
                 n: nf.format(plain.length), afford: nf.format(afford),
@@ -589,7 +754,7 @@
             body.appendChild(el('div', 'sgpv-w__line', t('noRows')));
         }
 
-        if (best) {
+        if (best && !solo) {
             const bestEl = el('div', 'sgpv-w__line sgpv-w__line--best', t('bestIs', {
                 odds: fmtOdds(best), value: fmtPerPoint(best),
             }));
@@ -619,7 +784,9 @@
             // construyó el widget puede tener minutos y filas ya sustituidas.
             applySort(collect(), on);
         });
-        body.appendChild(sortBtn);
+        // Fuera del listado el botón no se deja inerte, se quita: en la ficha
+        // de un sorteo no hay nada que reordenar, ni ahora ni luego.
+        if (!solo) body.appendChild(sortBtn);
 
         const aboutBtn = el('button', 'sgpv-w__btn sgpv-w__btn--ghost', t('about'));
         aboutBtn.type = 'button';
@@ -680,10 +847,14 @@
 
             // Sobre la lista entera, destacados incluidos: si no, una
             // coincidencia en la sección "Featured" quedaba resaltada en la
-            // página mientras el widget decía que no había ninguna.
-            const hits = list.filter(g => g.kw).length;
-            kwWrap.appendChild(el('div', 'sgpv-w__line' + (hits ? ' sgpv-w__line--kw' : ''),
-                hits ? tn(hits, 'kwCount', { n: nf.format(hits) }) : t('kwNone')));
+            // página mientras el widget decía que no había ninguna. En la
+            // ficha de un sorteo no se cuenta nada: el único sorteo que hay
+            // ya lo dice su propia sección.
+            if (!solo) {
+                const hits = list.filter(g => g.kw).length;
+                kwWrap.appendChild(el('div', 'sgpv-w__line' + (hits ? ' sgpv-w__line--kw' : ''),
+                    hits ? tn(hits, 'kwCount', { n: nf.format(hits) }) : t('kwNone')));
+            }
 
             // Con listas largas, borrar de una en una con la × es inviable.
             // Va en dos pasos y no con confirm(): un diálogo del navegador
@@ -712,18 +883,10 @@
         }
         body.appendChild(kwWrap);
 
-        const holesRow = el('label', 'sgpv-w__check');
-        const holesBox = el('input');
-        holesBox.type = 'checkbox';
-        holesBox.checked = recall(HOLES_KEY) === '1';
-        holesBox.addEventListener('change', () => {
-            store(HOLES_KEY, holesBox.checked ? '1' : null);
-            foldEmptyBlocks(collect());
-        });
-        holesRow.appendChild(holesBox);
-        holesRow.appendChild(el('span', null, t('holes')));
-        holesRow.title = t('holesTip');
-        body.appendChild(holesRow);
+        // La casilla pliega los bloques que el sitio intercala ENTRE LAS
+        // FILAS: sin listado no tiene nada que hacer, así que no se pinta un
+        // control que no haría nada.
+        if (!solo) buildHolesCheck(body);
 
         const langRow = el('div', 'sgpv-w__lang');
         langRow.title = t('langTip');
@@ -1101,6 +1264,11 @@
             '.' + BADGE_CLASS + '--mid{background:#4b72d4;}',
             '.' + BADGE_CLASS + '--low{background:#7b8794;}',
             '.' + BADGE_CLASS + '--blocked{background:#b9c0c8;}',
+            // El azul base, igual que --mid a propósito: en la ficha de un
+            // sorteo no hay reparto de colores, y el aviso de la píldora lo
+            // dice. El vertical-align la centra con el título, que ahí es
+            // mucho más grande que en una fila.
+            '.' + BADGE_CLASS + '--solo{background:#4b72d4;vertical-align:middle;}',
             '.sgpv-row--best > .giveaway__row-inner-wrap{box-shadow:inset 4px 0 0 #3d8b37;}',
 
             // Con muchas palabras guardadas, la lista de chips estiraba el
@@ -1125,6 +1293,11 @@
             '#' + WIDGET_ID + ' .sgpv-w__cap{font-size:11px;font-weight:600;}',
             '#' + WIDGET_ID + ' .sgpv-w__line{color:#b8c1cd;margin-top:2px;}',
             '#' + WIDGET_ID + ' .sgpv-w__line--best{color:#8bd67f;}',
+            '#' + WIDGET_ID + ' .sgpv-w__line--short{color:#e29a9a;}',
+            '#' + WIDGET_ID + ' .sgpv-w__solo{margin-top:8px;padding-top:8px;',
+            'border-top:1px solid #3c4757;}',
+            '#' + WIDGET_ID + ' .sgpv-w__solo-head{font-weight:700;color:#9fb4e8;}',
+            '#' + WIDGET_ID + ' .sgpv-w__solo-val{font-size:15px;font-weight:700;color:#fff;cursor:help;}',
             '#' + WIDGET_ID + ' .sgpv-w__btn{display:block;width:100%;margin-top:8px;cursor:pointer;',
             'font:inherit;font-weight:700;padding:5px 8px;border-radius:4px;border:1px solid #4b72d4;',
             'background:#4b72d4;color:#fff;}',
@@ -1285,7 +1458,14 @@
     // incluidas. En el foro, el soporte o los ajustes no pinta nada.
     function isGiveawayPage() {
         const path = location.pathname;
-        return path === '/' || path.startsWith('/giveaways');
+        return path === '/' || path.startsWith('/giveaways') || isSinglePage();
+    }
+
+    // La página de un sorteo y sus pestañas: /giveaway/<código>/... cuelga
+    // todo de ahí, incluidas "Entries" y "Stats", que traen la misma ficha
+    // arriba.
+    function isSinglePage() {
+        return location.pathname.startsWith('/giveaway/');
     }
 
     function run() {
@@ -1297,7 +1477,12 @@
         rankAll(list);
         list.forEach(paint);
         foldEmptyBlocks(list);
-        buildWidget(list);
+        const solo = parseSingle();
+        if (solo) {
+            solo.kw = matchesKeywords(solo.name, kws);
+            paintSingle(solo);
+        }
+        buildWidget(list, solo);
         if (recall(SORT_KEY) === '1') applySort(list, true);
         return true;
     }
@@ -1305,6 +1490,7 @@
     function boot() {
         run();
         if (!isGiveawayPage()) return;
+        if (isSinglePage()) return watchSingle();
         // El listado se repinta cuando otro script inserta filas (scroll
         // infinito de terceros). Se reprocesa con retardo para no correr una
         // vez por cada nodo insertado.
@@ -1315,6 +1501,30 @@
             clearTimeout(pending);
             pending = setTimeout(run, 200);
         }).observe(target, { childList: true });
+    }
+
+    // En la ficha no hay filas que vigilar, y lo que cambia no es la llegada
+    // de nodos: el contador de entradas se refresca solo, y entrar o salir del
+    // sorteo reescribe el saldo de la cabecera y cambia de clase los dos
+    // botones. Así que se observan esos tres nodos —y no la barra lateral
+    // entera, donde el anuncio de Google dispararía por su cuenta— con texto
+    // y clases, no solo hijos.
+    function watchSingle() {
+        const targets = [
+            document.querySelector(SEL.gaEntries),
+            document.querySelector(SEL.navPoints),
+            (document.querySelector(SEL.gaEnter) || {}).parentElement,
+        ].filter(Boolean);
+        if (!targets.length) return;
+        let pending = null;
+        const obs = new MutationObserver(() => {
+            clearTimeout(pending);
+            pending = setTimeout(run, 200);
+        });
+        targets.forEach(node => obs.observe(node, {
+            childList: true, subtree: true, characterData: true,
+            attributes: true, attributeFilter: ['class'],
+        }));
     }
 
     if (document.readyState === 'loading') {
