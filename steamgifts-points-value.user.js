@@ -1807,22 +1807,29 @@
         return true;
     }
 
-    // Un bloque ya plegado no se vuelve a medir, y esa es la clave: con
-    // `display:none` mide 0 de alto, así que `showsNothing()` contestaba "aquí
-    // no hay hueco" y la rama de abajo lo desplegaba. Cada pasada invertía el
-    // estado de todos: el síntoma era que los huecos aparecían al marcar
-    // cualquier casilla del widget y desaparecían al desmarcarla.
+    // Un bloque ya plegado NO se puede medir tal cual: con `display:none` mide
+    // 0 de alto, así que `showsNothing()` contestaba "aquí no hay hueco" y la
+    // rama de abajo lo desplegaba. Cada pasada invertía el estado de todos, y
+    // el síntoma era que los huecos aparecían al marcar cualquier casilla del
+    // widget y desaparecían al desmarcarla.
     //
-    // Para uno ya plegado la única pregunta que queda es si el banner acabó
-    // cargando, y eso se responde SIN layout: `naturalWidth` funciona con el
-    // nodo oculto. Es justo el caso que hay que cazar, porque el propio
-    // SteamGifts le quita la clase `hide` al banner de bundle en su `onload`
-    // cuando el anuncio viene vacío.
-    function hasLoadedImage(node) {
-        for (const img of node.querySelectorAll('img')) {
-            if (img.naturalWidth > 0) return true;
-        }
-        return false;
+    // Para volver a decidir hay que devolverlo a su sitio, medirlo y —si sigue
+    // sin pintar nada— volver a plegarlo, todo en la misma vuelta del bucle de
+    // eventos: el navegador recalcula el layout al leerlo, pero no pinta nada
+    // entre las dos escrituras, así que no hay parpadeo.
+    //
+    // Se intentó antes con un atajo sin layout —"¿cargó ya la imagen del
+    // banner?"— y estaba mal: `naturalWidth` dice que la imagen se descargó,
+    // no que se vea. En la máquina del usuario el bloqueador esconde
+    // `.fanatical_container` con una regla cosmética y la imagen vale 616,
+    // así que el atajo desplegaba justo lo que había que dejar plegado. Medir
+    // es más caro y es lo único que responde a la pregunta de verdad.
+    function stillShowsNothing(node) {
+        const prev = node.style.display;
+        node.style.display = '';
+        const nothing = showsNothing(node);
+        if (nothing) node.style.display = prev;
+        return nothing;
     }
 
     // Se pliega SOLO lo que se reconoce, y no "todo lo que no sea una fila":
@@ -1847,7 +1854,7 @@
         Array.from(host.row.parentElement.children).forEach(node => {
             if (!isPromoBlock(node)) return;
             const wasFolded = node.dataset.sgpvFolded === '1';
-            const fold = on && (wasFolded ? !hasLoadedImage(node) : showsNothing(node));
+            const fold = on && (wasFolded ? stillShowsNothing(node) : showsNothing(node));
             if (fold) {
                 node.dataset.sgpvFolded = '1';
                 node.style.display = 'none';
