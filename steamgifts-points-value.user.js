@@ -59,6 +59,7 @@
             toNext: '${v} to Level {n}',
             maxLevel: 'top level',
             counts: '{n} giveaways · {afford} within reach',
+            noRows: 'no giveaways on this page',
             bestIs: 'Best: {odds} · {value}',
             sortValue: 'Sort by value',
             sortSite: '✓ Sorted by value — undo',
@@ -68,8 +69,8 @@
             auto: 'Auto',
             minimise: 'Minimise',
             holes: 'Hide empty gaps',
-            kwPlaceholder: 'keyword, or -keyword',
-            kwHint: 'Enter to add · click a keyword to search the site for it · × removes it',
+            kwPlaceholder: 'keyword, -keyword, several, at once',
+            kwHint: 'Enter to add — commas separate several at once · click a keyword to search the site for it · × removes it',
             kwCount: '{n} match your keywords',
             kwNone: 'nothing matches your keywords',
             kwSearchTip: 'Search SteamGifts for "{k}"',
@@ -118,6 +119,7 @@
             toNext: '{v} $ para el nivel {n}',
             maxLevel: 'nivel máximo',
             counts: '{n} sorteos · {afford} a tu alcance',
+            noRows: 'no hay sorteos en esta página',
             bestIs: 'Mejor: {odds} · {value}',
             sortValue: 'Ordenar por valor',
             sortSite: '✓ Ordenado por valor — deshacer',
@@ -127,8 +129,8 @@
             auto: 'Automático',
             minimise: 'Minimizar',
             holes: 'Ocultar huecos vacíos',
-            kwPlaceholder: 'palabra, o -palabra',
-            kwHint: 'Intro para añadir · pulsa una palabra para buscarla en el sitio · × la quita',
+            kwPlaceholder: 'palabra, -palabra, varias, de una vez',
+            kwHint: 'Intro para añadir —las comas separan varias de una vez— · pulsa una palabra para buscarla en el sitio · × la quita',
             kwCount: '{n} coinciden con tus palabras',
             kwNone: 'nada coincide con tus palabras',
             kwSearchTip: 'Buscar «{k}» en SteamGifts',
@@ -493,11 +495,13 @@
         const plain = list.filter(g => !g.pinned);
         const best = bestOf(plain);
 
-        // En una página sin listado propio —la ficha de un sorteo, con sus
-        // destacados al lado— no hay nada que resumir, y el widget salía
-        // anunciando "0 sorteos · 0 a tu alcance".
+        // El widget se queda aunque el listado venga vacío —una búsqueda sin
+        // resultados es justo cuando hacen falta las palabras clave y el
+        // saldo—, pero fuera de las páginas de sorteos no pinta nada: con
+        // @match a todo el dominio, si no, saldría en el foro y en los
+        // ajustes.
         const old = document.getElementById(WIDGET_ID);
-        if (!plain.length) {
+        if (!isGiveawayPage() || !acc) {
             if (old) old.remove();
             return null;
         }
@@ -540,12 +544,14 @@
             if (lvl) body.appendChild(el('div', 'sgpv-w__line', lvl));
         }
 
-        const afford = acc
-            ? plain.filter(g => !g.levelBlocked && g.points <= acc.points).length
-            : plain.length;
-        body.appendChild(el('div', 'sgpv-w__line', t('counts', {
-            n: nf.format(plain.length), afford: nf.format(afford),
-        })));
+        if (plain.length) {
+            const afford = plain.filter(g => !g.levelBlocked && g.points <= acc.points).length;
+            body.appendChild(el('div', 'sgpv-w__line', t('counts', {
+                n: nf.format(plain.length), afford: nf.format(afford),
+            })));
+        } else {
+            body.appendChild(el('div', 'sgpv-w__line', t('noRows')));
+        }
 
         if (best) {
             body.appendChild(el('div', 'sgpv-w__line sgpv-w__line--best', t('bestIs', {
@@ -554,6 +560,10 @@
         }
 
         const sortBtn = el('button', 'sgpv-w__btn');
+        // Sin filas que reordenar el botón sigue visible pero inerte: quitarlo
+        // movería de sitio todo lo de debajo cada vez que una búsqueda no
+        // devuelve nada.
+        sortBtn.disabled = !plain.length;
         sortBtn.type = 'button';
         // La etiqueta dice el ESTADO, no la acción: con "Orden del sitio" no
         // se sabía si el listado estaba ya ordenado o si el botón lo iba a
@@ -589,10 +599,13 @@
         kwInput.addEventListener('keydown', ev => {
             if (ev.key !== 'Enter') return;
             ev.preventDefault();
-            const value = kwInput.value.trim();
-            if (!value) return;
+            // Las comas separan: pegar "doom, fallout, -eternal" añade tres.
+            const parts = kwInput.value.split(',').map(v => v.trim()).filter(Boolean);
+            if (!parts.length) return;
             const next = readKeywords();
-            if (!next.some(k => k.toLowerCase() === value.toLowerCase())) next.push(value);
+            parts.forEach(value => {
+                if (!next.some(k => k.toLowerCase() === value.toLowerCase())) next.push(value);
+            });
             saveKeywords(next);
             kwInput.value = '';
             run();
@@ -916,7 +929,8 @@
             '#' + WIDGET_ID + ' .sgpv-w__btn{display:block;width:100%;margin-top:8px;cursor:pointer;',
             'font:inherit;font-weight:700;padding:5px 8px;border-radius:4px;border:1px solid #4b72d4;',
             'background:#4b72d4;color:#fff;}',
-            '#' + WIDGET_ID + ' .sgpv-w__btn:hover{filter:brightness(1.12);}',
+            '#' + WIDGET_ID + ' .sgpv-w__btn:hover:not(:disabled){filter:brightness(1.12);}',
+            '#' + WIDGET_ID + ' .sgpv-w__btn:disabled{opacity:.45;cursor:default;}',
             '#' + WIDGET_ID + ' .sgpv-w__btn--on{background:#3d8b37;border-color:#3d8b37;}',
             '#' + WIDGET_ID + ' .sgpv-w__btn--ghost{background:transparent;color:#9fb4e8;}',
             // SteamGifts trae sus propios estilos de formulario, y con solo
@@ -1046,15 +1060,16 @@
         return folded;
     }
 
+    // Con @match a todo el dominio, el widget solo tiene sentido donde hay
+    // sorteos: la portada y todo lo que cuelga de /giveaways, búsquedas
+    // incluidas. En el foro, el soporte o los ajustes no pinta nada.
+    function isGiveawayPage() {
+        const path = location.pathname;
+        return path === '/' || path.startsWith('/giveaways');
+    }
+
     function run() {
         const list = collect();
-        if (!list.length) {
-            // El listado puede vaciarse en marcha (una búsqueda sin
-            // resultados, por ejemplo): el widget se va con él.
-            const stale = document.getElementById(WIDGET_ID);
-            if (stale) stale.remove();
-            return false;
-        }
         injectCss();
         const kws = readKeywords();
         list.forEach(g => { g.kw = matchesKeywords(g.name, kws); });
@@ -1067,7 +1082,8 @@
     }
 
     function boot() {
-        if (!run()) return;
+        run();
+        if (!isGiveawayPage()) return;
         // El listado se repinta cuando otro script inserta filas (scroll
         // infinito de terceros). Se reprocesa con retardo para no correr una
         // vez por cada nodo insertado.
