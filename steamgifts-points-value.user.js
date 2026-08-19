@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamGifts Points Value (odds & cost per giveaway)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
+// @version      1.1.0
 // @description  Works out the real odds of every open SteamGifts giveaway — copies against entries, not the entry count alone — and what those odds cost you in points, so you can see where your balance is worth spending. Adds odds and value per point to each row and to the giveaway page, sorts the listing by value, and shows a widget with your balance, your level and how far the next one is. Filtering by level, library or already-entered is left to the site's own settings, which do it server-side.
 // @match        https://www.steamgifts.com/*
 // @author       g31w0fw0rld
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.0.0';
+    const SCRIPT_VERSION = '1.1.0';
 
     // ------------------------------------------------------------------
     // i18n
@@ -105,13 +105,15 @@
                 '• Pale grey — your level does not reach it.',
                 'They compare the giveaways on the page against each other, not against fixed thresholds: a 0.4%/P can be the best of a quiet afternoon and the worst of a good one.',
                 '▸ Settings this script assumes',
-                '⚠ It filters nothing. SteamGifts does that server-side and better, in Account → Settings → Giveaways.',
+                '⚠ It repeats none of the site\u2019s filtering. SteamGifts does that server-side and better, in Account → Settings → Giveaways.',
                 '• 2. Hide games you already own → Yes',
                 "• 3. Hide DLC if you're missing the base game → Yes",
                 '• 4. Hide giveaways above your level → Yes',
                 "• 5. Hide giveaways you've already entered → Yes",
                 '• 6. Hide games you manually filtered → Yes',
                 'Leave 1 on All and 7 to taste. Without those, half the listing can be giveaways you cannot enter, and they drag the colour ranking with them.',
+                'The one view that does cut anything is "show matches only", and it cuts by your own keyword list, which the site knows nothing about. Nothing is removed: the rows stay on the page with their badges and their place in the order, and unticking it brings them all back.',
+                'And when anything matches, a second panel appears on the other side listing those giveaways. Click one to jump to it: with twenty pages loaded, that is the difference between finding your three and scrolling for them.',
                 '▸ Privacy',
                 'Nothing is sent to the author or to any third party. Everything you see on a page is arithmetic on what that page had already printed.',
                 '⚠ One thing does go to the network, and only when you press it: "Load every page" asks this same site for the pages after this one, with your session, exactly as clicking a page number in its own pagination would. Nothing else leaves your browser.',
@@ -141,6 +143,14 @@
             loadDoneOne: '1 page more · {n} giveaways added',
             loadNoMore: 'nothing more to load: this was the last page',
             loadFail: 'page {n} did not answer — what had loaded stays',
+            side: 'Move to the other side',
+            kwOnly: 'Show matches only',
+            kwOnlyTip: 'Hides the rows that do not match your keywords, so a long list stops painting half the page amber. It hides nothing the site chose to show you for a reason: this is your own keyword list, which SteamGifts knows nothing about, and it is a view — untick it and everything is back. Featured stay put, and so do the site\u2019s own blocks.',
+            kwOnlyEmpty: 'matches only: none on this page',
+            kwOnlyNeeds: 'Add a keyword first: with none, there is nothing to match and this would empty the listing.',
+            matches: 'Your matches',
+            matchesTip: 'Every giveaway on the page whose name matches your keywords, in the order they appear. Click one to jump to it — useful when the listing is twenty pages long and three of them are yours.',
+            jumpTip: 'Jump to this giveaway on the page',
         },
         es: {
             oneIn: '1 de {n}',
@@ -200,13 +210,15 @@
                 '• Gris claro: tu nivel no llega.',
                 'Comparan los sorteos de la página entre sí, no contra umbrales fijos: un 0,4 %/P puede ser lo mejor de una tarde floja y lo peor de una buena.',
                 '▸ Ajustes que este script da por supuestos',
-                '⚠ No filtra nada. Eso lo hace SteamGifts del lado del servidor y mejor, en Account → Settings → Giveaways.',
+                '⚠ No repite ningún filtro del sitio. Eso lo hace SteamGifts del lado del servidor y mejor, en Account → Settings → Giveaways.',
                 '• 2. Hide games you already own → Yes',
                 "• 3. Hide DLC if you're missing the base game → Yes",
                 '• 4. Hide giveaways above your level → Yes',
                 "• 5. Hide giveaways you've already entered → Yes",
                 '• 6. Hide games you manually filtered → Yes',
                 'Deja el 1 en All y el 7 a tu gusto. Sin eso, media página pueden ser sorteos en los que no puedes entrar, y arrastran con ellos el reparto de colores.',
+                'La única vista que sí recorta es «mostrar solo coincidencias», y recorta por tu lista de palabras, que el sitio no conoce. No quita nada: las filas siguen en la página, con su badge y su sitio en el orden, y al desmarcarla vuelven todas.',
+                'Y cuando algo casa, aparece al otro lado un segundo panel que las lista. Pulsa una para ir a ella: con veinte páginas cargadas, esa es la diferencia entre encontrar tus tres y bajar buscándolas.',
                 '▸ Privacidad',
                 'No se envía nada al autor ni a ningún tercero. Todo lo que ves en una página son cuentas sobre lo que esa página ya había impreso.',
                 '⚠ Una sola cosa sale a la red, y solo cuando la pulsas: «Cargar todas las páginas» le pide a este mismo sitio las páginas siguientes a esta, con tu sesión, igual que si pulsaras un número en su propia paginación. Nada más sale de tu navegador.',
@@ -236,6 +248,14 @@
             loadDoneOne: '1 página más · {n} sorteos añadidos',
             loadNoMore: 'no hay nada más que cargar: esta era la última página',
             loadFail: 'la página {n} no contestó — se queda lo que se había cargado',
+            side: 'Pasar al otro lado',
+            kwOnly: 'Mostrar solo coincidencias',
+            kwOnlyTip: 'Oculta las filas que no casan con tus palabras clave, para que una lista larga deje de pintar media página de ámbar. No esconde nada que el sitio haya decidido mostrarte por algún motivo: esto es tu lista de palabras, que SteamGifts no conoce, y es una vista —al desmarcarla vuelve todo—. Los destacados se quedan, y los bloques del sitio también.',
+            kwOnlyEmpty: 'solo coincidencias: ninguna en esta página',
+            kwOnlyNeeds: 'Añade antes una palabra: sin ninguna no hay nada que casar y esto vaciaría el listado.',
+            matches: 'Tus coincidencias',
+            matchesTip: 'Los sorteos de la página cuyo nombre casa con tus palabras clave, en el orden en que aparecen. Pulsa uno para ir a él: sirve cuando el listado son veinte páginas y tres son tuyas.',
+            jumpTip: 'Ir a este sorteo en la página',
         },
     };
 
@@ -298,6 +318,11 @@
     const MIN_KEY = 'sgpv-min';
     const HOLES_KEY = 'sgpv-holes';
     const KW_KEY = 'sgpv-keywords';
+    const MATCH_ID = 'sgpv-matches';
+    const JUMP_CLASS = 'sgpv-row--jump';
+    const JUMP_MS = 1400;
+    const SIDE_KEY = 'sgpv-side';
+    const ONLY_KEY = 'sgpv-only';
 
     const nf = new Intl.NumberFormat(LANG === 'es' ? 'es' : 'en');
     // Dos decimales fijos: con parseFloat, un 1,40 %/P se imprimía "1,4", y
@@ -543,6 +568,11 @@
 
     function paint(g) {
         g.row.classList.toggle('sgpv-row--kw', !!g.kw);
+        // "Solo coincidencias" es una VISTA, no un filtro del listado: la fila
+        // sigue en la página, con su badge y su sitio en el orden, solo que
+        // sin pintarse. Los destacados nunca se ocultan —viven en su propia
+        // sección y vaciarla dejaría una caja hueca—.
+        g.row.classList.toggle('sgpv-row--off', !!g.hidden);
         const links = g.row.querySelector(SEL.links);
         if (!links) return;
         let badge = links.querySelector('.' + BADGE_CLASS);
@@ -809,6 +839,25 @@
         body.appendChild(holesRow);
     }
 
+    function buildOnlyCheck(host, enabled) {
+        const row = el('label', 'sgpv-w__check' + (enabled ? '' : ' sgpv-w__check--off'));
+        const box = el('input');
+        box.type = 'checkbox';
+        box.checked = recall(ONLY_KEY) === '1';
+        box.disabled = !enabled;
+        box.addEventListener('change', () => {
+            store(ONLY_KEY, box.checked ? '1' : null);
+            run();
+        });
+        row.appendChild(box);
+        row.appendChild(el('span', null, t('kwOnly')));
+        // El estado guardado se muestra tal cual aunque esté inerte —mentir
+        // sobre lo que hay guardado es peor—, y el aviso explica por qué no
+        // hace nada.
+        row.title = enabled ? t('kwOnlyTip') : t('kwOnlyNeeds');
+        host.appendChild(row);
+    }
+
     function buildWidget(list, solo) {
         const acc = readAccount();
         const plain = list.filter(g => !g.pinned);
@@ -834,8 +883,27 @@
         w.textContent = '';
         w.classList.toggle('sgpv-w--min', recall(MIN_KEY) === '1');
 
+        w.classList.toggle('sgpv-w--left', recall(SIDE_KEY) === 'l');
+
         const head = el('div', 'sgpv-w__head');
         head.appendChild(el('span', 'sgpv-w__title', t('title')));
+        // El widget está fijo, así que en ventanas estrechas tapa la columna
+        // derecha de las filas —las carátulas—. En vez de elegir un lado por
+        // el usuario, se le da el interruptor: según el ancho de su ventana,
+        // el hueco libre está a un lado o al otro.
+        const side = el('button', 'sgpv-w__min', '⇄');
+        side.type = 'button';
+        side.title = t('side');
+        side.addEventListener('click', () => {
+            const left = recall(SIDE_KEY) !== 'l';
+            store(SIDE_KEY, left ? 'l' : null);
+            w.classList.toggle('sgpv-w--left', left);
+            // El panel de coincidencias vive en el lado contrario, así que se
+            // cruza con él y no hay que pensar en los dos por separado.
+            const panel = document.getElementById(MATCH_ID);
+            if (panel) panel.classList.toggle('sgpv-m--right', left);
+        });
+        head.appendChild(side);
         const min = el('button', 'sgpv-w__min', recall(MIN_KEY) === '1' ? '+' : '–');
         min.type = 'button';
         min.title = t('minimise');
@@ -1037,8 +1105,13 @@
             // ya lo dice su propia sección.
             if (!solo) {
                 const hits = list.filter(g => g.kw).length;
+                // Con la vista puesta y sin ninguna coincidencia, el listado
+                // se queda vacío a propósito: hay que decirlo, porque una
+                // página en blanco se lee como un fallo.
+                const empty = !hits && recall(ONLY_KEY) === '1' && plain.length;
                 kwWrap.appendChild(el('div', 'sgpv-w__line' + (hits ? ' sgpv-w__line--kw' : ''),
-                    hits ? tn(hits, 'kwCount', { n: nf.format(hits) }) : t('kwNone')));
+                    hits ? tn(hits, 'kwCount', { n: nf.format(hits) })
+                        : (empty ? t('kwOnlyEmpty') : t('kwNone'))));
             }
 
             // Con listas largas, borrar de una en una con la × es inviable.
@@ -1068,10 +1141,17 @@
         }
         body.appendChild(kwWrap);
 
-        // La casilla pliega los bloques que el sitio intercala ENTRE LAS
-        // FILAS: sin listado no tiene nada que hacer, así que no se pinta un
-        // control que no haría nada.
-        if (!solo) buildHolesCheck(body);
+        // Las dos casillas van juntas en el cuerpo del widget, no dentro del
+        // bloque de palabras: son ajustes de la vista, y aparecer y
+        // desaparecer con la lista de palabras movería de sitio todo lo de
+        // debajo. Ninguna se pinta en la ficha de un sorteo, donde no hay
+        // listado ni bloques que plegar.
+        if (!solo) {
+            // Sin palabras positivas se queda inerte en vez de irse: marcarla
+            // ocultaría el listado entero, que no es una vista, es un error.
+            buildOnlyCheck(body, splitKeywords(readKeywords()).positive.length > 0);
+            buildHolesCheck(body);
+        }
 
         const langRow = el('div', 'sgpv-w__lang');
         langRow.title = t('langTip');
@@ -1089,6 +1169,72 @@
 
         w.appendChild(body);
         return w;
+    }
+
+    // ------------------------------------------------------------------
+    // Panel de coincidencias
+    // ------------------------------------------------------------------
+    // Índice de lo tuyo, no un segundo widget de ajustes: lista los sorteos
+    // que casan con tus palabras y salta al que pulses. Cobra sentido justo
+    // cuando el listado deja de caber en la pantalla —veinte páginas cargadas
+    // y tres coincidencias—, que es cuando el resaltado por sí solo obliga a
+    // buscar el marco ámbar a rueda de ratón.
+    //
+    // Va SIEMPRE en el lado contrario al widget, así que el botón ⇄ mueve los
+    // dos a la vez y nunca se solapan.
+    function jumpTo(g) {
+        // La fila puede haber sido reemplazada por el AJAX del sitio entre que
+        // se pintó el panel y el clic: si ya no cuelga del documento, se
+        // repinta todo y no se salta a ninguna parte.
+        if (!g.row.isConnected) { run(); return; }
+        try { g.row.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+        catch (e) { g.row.scrollIntoView(); }
+        // Un destello aparte del marco ámbar que ya lleva por ser
+        // coincidencia: si no, al saltar no se distingue a cuál se saltó.
+        g.row.classList.add(JUMP_CLASS);
+        setTimeout(() => g.row.classList.remove(JUMP_CLASS), JUMP_MS);
+        // Y el foco al enlace del título, para que quien navegue con teclado
+        // siga desde ahí y pueda abrirlo con Enter.
+        const link = g.row.querySelector(SEL.name);
+        if (link) { try { link.focus({ preventScroll: true }); } catch (e) { /* noop */ } }
+    }
+
+    function buildMatchesPanel(list, solo) {
+        const old = document.getElementById(MATCH_ID);
+        const hits = solo ? [] : list.filter(g => g.kw && g.row.isConnected);
+        if (!hits.length) {
+            if (old) old.remove();
+            return null;
+        }
+
+        let panel = old;
+        if (!panel) {
+            panel = el('div', null);
+            panel.id = MATCH_ID;
+            document.body.appendChild(panel);
+        }
+        panel.textContent = '';
+        // El widget a la derecha (por defecto) deja este a la izquierda.
+        panel.classList.toggle('sgpv-m--right', recall(SIDE_KEY) === 'l');
+
+        const head = el('div', 'sgpv-m__head');
+        head.appendChild(el('span', 'sgpv-m__title', t('matches')));
+        head.appendChild(el('span', 'sgpv-m__count', nf.format(hits.length)));
+        head.title = t('matchesTip');
+        panel.appendChild(head);
+
+        const body = el('div', 'sgpv-m__body');
+        hits.forEach(g => {
+            const item = el('button', 'sgpv-m__item');
+            item.type = 'button';
+            item.title = t('jumpTip');
+            item.appendChild(el('span', 'sgpv-m__name', g.name));
+            item.appendChild(el('span', 'sgpv-m__val', fmtOdds(g) + ' · ' + fmtPerPoint(g)));
+            item.addEventListener('click', () => jumpTo(g));
+            body.appendChild(item);
+        });
+        panel.appendChild(body);
+        return panel;
     }
 
     // ------------------------------------------------------------------
@@ -1323,7 +1469,7 @@
     // así que el escondite entra también en el selector: sin él, volver a
     // entrar en el mismo control se leería como salir de la zona con tooltip.
     const TIP_SELECTOR = '[title], [' + TIP_STASH + ']';
-    const TIP_SCOPE = '#' + WIDGET_ID + ', .' + BADGE_CLASS;
+    const TIP_SCOPE = '#' + WIDGET_ID + ', #' + MATCH_ID + ', .' + BADGE_CLASS;
 
     let tipEl = null;
     let tipAnchor = null;
@@ -1345,8 +1491,11 @@
     // —el widget está pegado al borde, así que anclando a él los avisos no
     // bailan—; los badges, encima de la fila, y debajo si arriba no cabe.
     function positionTip(anchor) {
-        const inWidget = !!anchor.closest('#' + WIDGET_ID);
-        const scope = inWidget ? document.getElementById(WIDGET_ID) : anchor;
+        // Los dos paneles fijos se tratan igual: el aviso sale por su lado
+        // libre, anclado al panel y no al control, para que no baile.
+        const host = anchor.closest('#' + WIDGET_ID + ', #' + MATCH_ID);
+        const inWidget = !!host;
+        const scope = host || anchor;
         const box = tipEl.getBoundingClientRect();
         const a = anchor.getBoundingClientRect();
         const s = scope.getBoundingClientRect();
@@ -1460,6 +1609,37 @@
             // widget hasta salirse por arriba de la ventana. Ahora el widget
             // tiene techo y su cuerpo scrollea; los chips, además, tienen el
             // suyo propio para no comerse el resto de los controles.
+            // display:none con !important porque quien lo pone es el sitio en
+            // su propia hoja: sin la marca, una regla suya con la misma
+            // especificidad y más abajo ganaría.
+            '.sgpv-row--off{display:none !important;}',
+            // Contorno y no sombra: el marco ámbar de coincidencia y la barra
+            // verde de mejor valor ya usan box-shadow, y el destello tiene que
+            // verse encima de los dos.
+            '.' + JUMP_CLASS + ' > .giveaway__row-inner-wrap{outline:3px solid #9fb4e8;',
+            'outline-offset:-3px;}',
+            '#' + MATCH_ID + '{position:fixed;left:16px;bottom:16px;z-index:9998;width:222px;',
+            'max-height:calc(100vh - 32px);display:flex;flex-direction:column;',
+            'background:#2f3947;color:#e6e9ee;border:1px solid #1d2530;border-radius:6px;',
+            'box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:12px;line-height:1.4;}',
+            '#' + MATCH_ID + '.sgpv-m--right{right:16px;left:auto;}',
+            '#' + MATCH_ID + ' .sgpv-m__head{flex:0 0 auto;display:flex;align-items:center;',
+            'justify-content:space-between;gap:6px;padding:6px 10px;background:#242c37;',
+            'border-radius:5px 5px 0 0;cursor:help;}',
+            '#' + MATCH_ID + ' .sgpv-m__title{font-weight:700;letter-spacing:.02em;}',
+            '#' + MATCH_ID + ' .sgpv-m__count{font-weight:700;color:#ffcf66;}',
+            '#' + MATCH_ID + ' .sgpv-m__body{overflow-y:auto;min-height:0;padding:6px;',
+            'overscroll-behavior:contain;}',
+            '#' + MATCH_ID + ' .sgpv-m__item{display:block;width:100%;text-align:left;',
+            'font:inherit;cursor:pointer;padding:4px 6px;margin:0 0 3px;border-radius:4px;',
+            'border:1px solid transparent;background:transparent;color:#e6e9ee;}',
+            '#' + MATCH_ID + ' .sgpv-m__item:hover{background:#3a4655;border-color:#4b72d4;}',
+            '#' + MATCH_ID + ' .sgpv-m__name{display:block;font-weight:600;',
+            // El nombre completo en una línea: partirlo haría que el panel
+            // cambiara de alto según los juegos que toquen ese día.
+            'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+            '#' + MATCH_ID + ' .sgpv-m__val{display:block;color:#9fb4e8;font-size:11px;}',
+            '#' + WIDGET_ID + '.sgpv-w--left{left:16px;right:auto;}',
             '#' + WIDGET_ID + '{position:fixed;right:16px;bottom:16px;z-index:9999;width:248px;',
             'max-height:calc(100vh - 32px);display:flex;flex-direction:column;',
             'background:#2f3947;color:#e6e9ee;border:1px solid #1d2530;border-radius:6px;',
@@ -1539,6 +1719,8 @@
             '#' + WIDGET_ID + ' .sgpv-w__check input{flex:0 0 auto;width:13px;height:13px;',
             'margin:0;padding:0;cursor:pointer;accent-color:#4b72d4;float:none;position:static;}',
             '#' + WIDGET_ID + ' .sgpv-w__check span{flex:1 1 auto;min-width:0;}',
+            '#' + WIDGET_ID + ' .sgpv-w__check--off{opacity:.45;cursor:default;}',
+            '#' + WIDGET_ID + ' .sgpv-w__check--off input{cursor:default;}',
             '#' + WIDGET_ID + ' .sgpv-w__lang{display:flex;align-items:center;justify-content:space-between;',
             'gap:6px;margin-top:10px;color:#9aa4b2;}',
             '#' + WIDGET_ID + ' .sgpv-w__lang select{font:inherit;padding:2px 4px;border-radius:3px;',
@@ -1666,7 +1848,14 @@
         injectCss();
         initTooltips();
         const kws = readKeywords();
-        list.forEach(g => { g.kw = matchesKeywords(g.name, kws); });
+        // La vista se apoya en que HAYA palabras positivas: `matchesKeywords`
+        // devuelve false para todas si solo hay negativas, y entonces esto
+        // vaciaría la página.
+        const only = recall(ONLY_KEY) === '1' && splitKeywords(kws).positive.length > 0;
+        list.forEach(g => {
+            g.kw = matchesKeywords(g.name, kws);
+            g.hidden = only && !g.kw && !g.pinned;
+        });
         rankAll(list);
         list.forEach(paint);
         foldEmptyBlocks(list);
@@ -1676,6 +1865,7 @@
             paintSingle(solo);
         }
         buildWidget(list, solo);
+        buildMatchesPanel(list, solo);
         if (recall(SORT_KEY) === '1') applySort(list, true);
         return true;
     }
