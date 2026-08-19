@@ -61,7 +61,7 @@
             counts: '{n} giveaways · {afford} within reach',
             bestIs: 'Best: {odds} · {value}',
             sortValue: 'Sort by value',
-            sortSite: "Site's order",
+            sortSite: '✓ Sorted by value — undo',
             about: 'ℹ️ Learn more',
             close: 'Close',
             language: 'Language',
@@ -111,7 +111,7 @@
             counts: '{n} sorteos · {afford} a tu alcance',
             bestIs: 'Mejor: {odds} · {value}',
             sortValue: 'Ordenar por valor',
-            sortSite: 'Orden del sitio',
+            sortSite: '✓ Ordenado por valor — deshacer',
             about: 'ℹ️ Saber más',
             close: 'Cerrar',
             language: 'Idioma',
@@ -335,16 +335,31 @@
     // listado. Cada fila deja un marcador en su sitio y las filas ordenadas
     // ocupan esos mismos marcadores, así que lo ajeno no se mueve.
     function reflow(plain, ordered) {
-        const anchors = plain.map(g => {
+        // Solo filas que sigan colgando del documento: SteamGifts reemplaza
+        // una fila entera por AJAX cuando entras o sales de un sorteo con el
+        // botón rápido, y la lista en memoria se queda apuntando a un nodo
+        // huérfano. Sin esta guarda, el primer parentNode nulo lanzaba a
+        // mitad del reparto y dejaba el listado barajado: unos marcadores
+        // puestos, unas filas movidas y el resto en su sitio.
+        const live = plain.filter(g => g.row.isConnected && g.row.parentNode);
+        const wanted = ordered.filter(g => g.row.isConnected && g.row.parentNode);
+        if (live.length !== wanted.length || !live.length) return false;
+
+        const anchors = live.map(g => {
             const mark = document.createComment('sgpv');
             g.row.parentNode.insertBefore(mark, g.row);
             return mark;
         });
-        ordered.forEach((g, i) => {
-            const mark = anchors[i];
-            if (mark && mark.parentNode) mark.parentNode.replaceChild(g.row, mark);
-        });
-        anchors.forEach(m => { if (m.parentNode) m.parentNode.removeChild(m); });
+        try {
+            wanted.forEach((g, i) => {
+                const mark = anchors[i];
+                if (mark && mark.parentNode) mark.parentNode.replaceChild(g.row, mark);
+            });
+            return true;
+        } finally {
+            // Pase lo que pase, ningún marcador se queda en la página.
+            anchors.forEach(m => { if (m.parentNode) m.parentNode.removeChild(m); });
+        }
     }
 
     function byValue(a, b) {
@@ -364,10 +379,10 @@
     function applySort(list, on) {
         // Los destacados viven en su propio contenedor: moverlos rompería
         // esa sección, así que se quedan fuera del reparto.
-        const plain = list.filter(g => !g.pinned);
-        if (!plain.length) return;
+        const plain = list.filter(g => !g.pinned && g.row.isConnected);
+        if (!plain.length) return false;
 
-        reflow(plain, on
+        const done = reflow(plain, on
             ? plain.slice().sort(byValue)
             : plain.slice().sort((a, b) => a.siteIndex - b.siteIndex));
 
@@ -376,6 +391,7 @@
             const best = bestOf(plain);
             if (best) best.row.classList.add('sgpv-row--best');
         }
+        return done;
     }
 
     // ------------------------------------------------------------------
@@ -461,13 +477,21 @@
 
         const sortBtn = el('button', 'sgpv-w__btn');
         sortBtn.type = 'button';
-        const label = on => { sortBtn.textContent = on ? t('sortSite') : t('sortValue'); };
+        // La etiqueta dice el ESTADO, no la acción: con "Orden del sitio" no
+        // se sabía si el listado estaba ya ordenado o si el botón lo iba a
+        // devolver a su sitio.
+        const label = on => {
+            sortBtn.textContent = on ? t('sortSite') : t('sortValue');
+            sortBtn.classList.toggle('sgpv-w__btn--on', on);
+        };
         label(recall(SORT_KEY) === '1');
         sortBtn.addEventListener('click', () => {
             const on = recall(SORT_KEY) !== '1';
             store(SORT_KEY, on ? '1' : '0');
             label(on);
-            applySort(list, on);
+            // Se relee el DOM en el momento del clic: la lista con la que se
+            // construyó el widget puede tener minutos y filas ya sustituidas.
+            applySort(collect(), on);
         });
         body.appendChild(sortBtn);
 
@@ -745,6 +769,7 @@
             'font:inherit;font-weight:700;padding:5px 8px;border-radius:4px;border:1px solid #4b72d4;',
             'background:#4b72d4;color:#fff;}',
             '#' + WIDGET_ID + ' .sgpv-w__btn:hover{filter:brightness(1.12);}',
+            '#' + WIDGET_ID + ' .sgpv-w__btn--on{background:#3d8b37;border-color:#3d8b37;}',
             '#' + WIDGET_ID + ' .sgpv-w__btn--ghost{background:transparent;color:#9fb4e8;}',
             '#' + WIDGET_ID + ' .sgpv-w__lang{display:flex;align-items:center;justify-content:space-between;',
             'gap:6px;margin-top:10px;color:#9aa4b2;}',
