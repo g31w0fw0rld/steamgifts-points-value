@@ -67,6 +67,8 @@
             language: 'Language',
             auto: 'Auto',
             minimise: 'Minimise',
+            holes: 'Hide empty gaps',
+            holesTip: "SteamGifts slots its own bundle banners between the rows. If a blocker empties them, the container keeps its reserved height and leaves a ~200px gap in the middle of the listing. This folds away only the ones showing nothing at all: a banner that does load is left alone.",
             aboutTitle: 'What does this script do?',
             aboutName: 'Name:',
             aboutVersion: 'Version:',
@@ -117,6 +119,8 @@
             language: 'Idioma',
             auto: 'Automático',
             minimise: 'Minimizar',
+            holes: 'Ocultar huecos vacíos',
+            holesTip: 'SteamGifts intercala entre las filas sus propios banners de bundles. Si un bloqueador los vacía, el contenedor conserva la altura reservada y deja un hueco de unos 200 px en mitad del listado. Esto pliega solo los que no muestran absolutamente nada: un banner que sí carga se queda como está.',
             aboutTitle: '¿Qué hace este script?',
             aboutName: 'Nombre:',
             aboutVersion: 'Versión:',
@@ -183,6 +187,7 @@
     const WIDGET_ID = 'sgpv-widget';
     const SORT_KEY = 'sgpv-sort';
     const MIN_KEY = 'sgpv-min';
+    const HOLES_KEY = 'sgpv-holes';
 
     const nf = new Intl.NumberFormat(LANG === 'es' ? 'es' : 'en');
     // Dos decimales fijos: con parseFloat, un 1,40 %/P se imprimía "1,4", y
@@ -500,6 +505,19 @@
         aboutBtn.addEventListener('click', showAboutModal);
         body.appendChild(aboutBtn);
 
+        const holesRow = el('label', 'sgpv-w__check');
+        const holesBox = el('input');
+        holesBox.type = 'checkbox';
+        holesBox.checked = recall(HOLES_KEY) === '1';
+        holesBox.addEventListener('change', () => {
+            store(HOLES_KEY, holesBox.checked ? '1' : null);
+            foldEmptyBlocks(collect());
+        });
+        holesRow.appendChild(holesBox);
+        holesRow.appendChild(el('span', null, t('holes')));
+        holesRow.title = t('holesTip');
+        body.appendChild(holesRow);
+
         const langRow = el('div', 'sgpv-w__lang');
         langRow.appendChild(el('span', null, t('language')));
         const sel = el('select');
@@ -771,6 +789,9 @@
             '#' + WIDGET_ID + ' .sgpv-w__btn:hover{filter:brightness(1.12);}',
             '#' + WIDGET_ID + ' .sgpv-w__btn--on{background:#3d8b37;border-color:#3d8b37;}',
             '#' + WIDGET_ID + ' .sgpv-w__btn--ghost{background:transparent;color:#9fb4e8;}',
+            '#' + WIDGET_ID + ' .sgpv-w__check{display:flex;align-items:center;gap:6px;',
+            'margin-top:10px;color:#b8c1cd;cursor:pointer;}',
+            '#' + WIDGET_ID + ' .sgpv-w__check input{margin:0;cursor:pointer;}',
             '#' + WIDGET_ID + ' .sgpv-w__lang{display:flex;align-items:center;justify-content:space-between;',
             'gap:6px;margin-top:10px;color:#9aa4b2;}',
             '#' + WIDGET_ID + ' .sgpv-w__lang select{font:inherit;padding:2px 4px;border-radius:3px;',
@@ -796,12 +817,61 @@
         return list;
     }
 
+    // Entre las filas, SteamGifts intercala sus propios bloques de promoción
+    // de bundles —clase ofuscada que cambia en cada carga, uno cada trece
+    // filas—. Si un bloqueador los vacía, el div conserva la altura reservada
+    // y deja un hueco de unos 200 px en mitad del listado.
+    //
+    // Va detrás de una casilla y apagado por defecto: el hueco no lo crea
+    // este script, y esos banners son del sitio. Quien no use bloqueador no
+    // tiene nada que plegar.
+    //
+    // "No muestra nada" no es "no tiene hijos": el bloque vacío del listado
+    // trae dos <img> que no llegan a pintarse. Así que se mira si queda texto
+    // y si alguna imagen cargó de verdad (naturalWidth > 0), no la mera
+    // presencia de etiquetas.
+    function showsNothing(node) {
+        if (node.textContent.trim()) return false;
+        const media = node.querySelectorAll('img, iframe, video, canvas, svg');
+        for (const m of media) {
+            if (m.tagName === 'IMG') {
+                if (m.naturalWidth > 0) return false;
+            } else if (m.getBoundingClientRect && m.getBoundingClientRect().height > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function foldEmptyBlocks(list) {
+        const host = list.find(g => !g.pinned && g.row.parentElement);
+        if (!host) return 0;
+        const on = recall(HOLES_KEY) === '1';
+        let folded = 0;
+        Array.from(host.row.parentElement.children).forEach(node => {
+            if (node.classList.contains('giveaway__row-outer-wrap')) return;
+            if (node.id === WIDGET_ID) return;
+            if (on && showsNothing(node)) {
+                node.dataset.sgpvFolded = '1';
+                node.style.display = 'none';
+                folded++;
+            } else if (node.dataset.sgpvFolded === '1') {
+                // Se devuelve a su sitio al apagar la casilla, y también si el
+                // banner acaba cargando más tarde.
+                delete node.dataset.sgpvFolded;
+                node.style.display = '';
+            }
+        });
+        return folded;
+    }
+
     function run() {
         const list = collect();
         if (!list.length) return false;
         injectCss();
         rankAll(list);
         list.forEach(paint);
+        foldEmptyBlocks(list);
         buildWidget(list);
         if (recall(SORT_KEY) === '1') applySort(list, true);
         return true;

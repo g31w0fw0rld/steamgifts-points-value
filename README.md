@@ -19,6 +19,7 @@ Details worth knowing:
 - **A giveaway with no entries yet reads as certain**, not as a division by zero: the next entry takes a copy.
 - **Values below 0.01% show as `<0.01`** rather than rounding down to a `0` that would be indistinguishable from a giveaway that costs nothing.
 - **Sorting is manual.** The script does not reorder anything until you ask it to, so the page you land on is the page the site meant to give you.
+- **Empty gaps, off by default.** SteamGifts slots its own bundle banners between the rows, one every thirteen or so. If a blocker empties one, the container keeps its reserved height and leaves a ~200px hole in the middle of the listing — that hole is the site's, not this script's. A checkbox in the widget folds away **only** the blocks showing nothing at all: a banner that does load is left alone, and one that loads late comes straight back.
 
 **Language:** English and Spanish only — the site itself exists in one language, so there is no point going further. Picked from your browser's languages, and overridable from the widget. SteamGifts pins `<html lang="en">` for everyone because its interface only exists in English, so the document's own language would be useless here.
 
@@ -45,6 +46,7 @@ Detalles que conviene saber:
 - **Un sorteo sin entradas todavía se lee como seguro**, no como una división por cero: la siguiente entrada se lleva una copia.
 - **Los valores por debajo del 0,01 % se muestran como `<0,01`** en vez de redondearse a un `0` que no se distinguiría de un sorteo que no cuesta puntos.
 - **La ordenación es manual.** El script no mueve nada hasta que se lo pides, así que la página que abres es la que el sitio quiso darte.
+- **Huecos vacíos, apagado por defecto.** SteamGifts intercala entre las filas sus propios banners de bundles, uno cada trece más o menos. Si un bloqueador vacía alguno, el contenedor conserva la altura reservada y deja un hueco de unos 200 px en mitad del listado —ese hueco es del sitio, no de este script—. Una casilla del widget pliega **solo** los bloques que no muestran absolutamente nada: un banner que sí carga se queda como está, y uno que carga tarde vuelve solo.
 
 **Idioma:** solo inglés y español —el propio sitio existe en un solo idioma, así que no tiene sentido ir más allá—. Se elige por los idiomas de tu navegador y se puede forzar desde el widget. SteamGifts fija `<html lang="en">` para todo el mundo porque su interfaz solo existe en inglés, así que el idioma del documento no serviría de nada aquí.
 
