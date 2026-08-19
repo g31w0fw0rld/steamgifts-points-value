@@ -842,18 +842,37 @@
     // este script, y esos banners son del sitio. Quien no use bloqueador no
     // tiene nada que plegar.
     //
-    // "No muestra nada" no es "no tiene hijos": el bloque vacío del listado
-    // trae dos <img> que no llegan a pintarse. Así que se mira si queda texto
-    // y si alguna imagen cargó de verdad (naturalWidth > 0), no la mera
-    // presencia de etiquetas.
+    // "No muestra nada" no es "no tiene contenido": el bloque trae el banner
+    // de Fanatical entero —con su título, su fecha y su precio— pero con la
+    // clase `hide` del sitio, y debajo un <div> con 25px de padding arriba y
+    // abajo envolviendo el <ins> de Google. O sea que hay texto de sobra en el
+    // DOM; lo que no hay es nada pintado. Por eso se mide lo que ocupa en
+    // pantalla, no lo que existe en el árbol.
+    function isVisible(node) {
+        if (!node.getClientRects || !node.getClientRects().length) return false;
+        const r = node.getBoundingClientRect();
+        return r.height > 1 && r.width > 1;
+    }
+
     function showsNothing(node) {
-        if (node.textContent.trim()) return false;
-        const media = node.querySelectorAll('img, iframe, video, canvas, svg');
-        for (const m of media) {
-            if (m.tagName === 'IMG') {
-                if (m.naturalWidth > 0) return false;
-            } else if (m.getBoundingClientRect && m.getBoundingClientRect().height > 0) {
-                return false;
+        // Si el propio bloque no ocupa alto, no hay hueco que plegar. Además
+        // sirve de red de seguridad donde no haya layout: sin medidas, esto
+        // devuelve false y no se toca nada.
+        if (!node.getBoundingClientRect || node.getBoundingClientRect().height <= 8) return false;
+
+        for (const child of node.querySelectorAll('*')) {
+            const tag = child.tagName;
+            if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') continue;
+            if (!isVisible(child)) continue;
+            if (tag === 'IMG') {
+                if (child.naturalWidth > 0) return false;
+                continue;
+            }
+            if (tag === 'IFRAME' || tag === 'VIDEO' || tag === 'CANVAS' || tag === 'SVG' || tag === 'INS') return false;
+            // Texto propio del nodo, no el heredado de sus descendientes: si
+            // no, el contenedor de más arriba contaría por todos.
+            for (const n of child.childNodes) {
+                if (n.nodeType === 3 && n.textContent.trim()) return false;
             }
         }
         return true;
