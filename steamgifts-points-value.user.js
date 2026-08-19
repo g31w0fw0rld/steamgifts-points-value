@@ -355,10 +355,10 @@
     // nodo entero en el listado, donde cada una tiene el suyo.
     const RE_POINTS = /^\(\s*([\d,.]+)\s*P\s*\)$/i;
     const RE_COPIES = /^\(\s*([\d,.]+)\s*Cop(?:y|ies)\s*\)$/i;
-    // En la cabecera de la página de un sorteo no está confirmado en qué nodo
-    // cae la etiqueta de copias —los sorteos de copia única, que son casi
-    // todos, no la imprimen—, así que ahí se busca dentro del texto de la
-    // cabecera entera y sin anclar.
+    // En la cabecera de la página de un sorteo se busca sin anclar, dentro de
+    // su texto entero. Verificado el 2026-08-19 con The Joust: la cabecera dice
+    // "The Joust (50 Copies) (1P)", así que la etiqueta está ahí; en qué nodo
+    // exacto cae no hace falta saberlo, y por eso se busca así.
     const RE_COPIES_LOOSE = /\(\s*([\d,.]+)\s*Cop(?:y|ies)\s*\)/i;
 
     // La aritmética de un sorteo en un solo sitio: la comparten una fila del
@@ -428,9 +428,9 @@
         }
         if (points === null) return null;
 
-        // La cabecera primero y la ficha entera como red: no está confirmado
-        // en qué nodo cae la etiqueta de copias, así que se amplía el sitio
-        // donde se busca antes de dar por hecho que es de copia única.
+        // La cabecera primero y la ficha entera como red: la cabecera es donde
+        // está (verificado con un sorteo de 50 copias), y ampliar el sitio
+        // donde se busca cuesta un querySelector y cubre que se mueva.
         const wrap = document.querySelector(SEL.gaWrap);
         const c = heading.textContent.match(RE_COPIES_LOOSE)
             || (wrap ? wrap.textContent.match(RE_COPIES_LOOSE) : null);

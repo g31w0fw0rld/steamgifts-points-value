@@ -6,9 +6,11 @@ Tampermonkey userscript that works out the real odds of every SteamGifts giveawa
 
 *The listing: odds and value per point on every row, sorted best-first, and the widget with your balance, your level, what is within reach and your keywords. / El listado: probabilidad y valor por punto en cada fila, ordenado de mejor a peor, y el widget con tu saldo, tu nivel, lo que te alcanza y tus palabras clave.*
 
-![A giveaway page with the badge next to its title and the widget showing what the balance is left at](docs/screenshot-giveaway.png)
+![A single-copy giveaway page: 25P, 3,429 entries, badge reading 1 in 3,429 and under 0.01%/P](docs/screenshot-giveaway-single.png)
 
-*Inside a giveaway: the same two numbers next to its title and in the widget, plus what your balance is left at if you enter. / Dentro de un sorteo: los dos mismos números junto a su título y en el widget, además de en cuánto queda tu saldo si entras.*
+![A 50-copy giveaway page: 1P, 3,888 entries, badge reading 1 in 78 and 1.29%/P](docs/screenshot-giveaway-copies.png)
+
+*Inside a giveaway: the same two numbers next to its title and in the widget, plus what your balance is left at if you enter. These two are the whole point of the script — 3,429 entries against 3,888 look alike, but one is a single copy at 25P and the other fifty copies at 1P, which is 1 in 3,429 versus 1 in 78, and under 0.01%/P versus 1.29%/P. / Dentro de un sorteo: los dos mismos números junto a su título y en el widget, además de en cuánto queda tu saldo si entras. Estas dos son el script entero en una imagen —3.429 entradas y 3.888 se parecen, pero uno es de copia única a 25P y el otro de cincuenta copias a 1P, o sea 1 de 3.429 contra 1 de 78, y menos de 0,01 %/P contra 1,29 %/P—.*
 
 ## English
 
