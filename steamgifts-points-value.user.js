@@ -61,7 +61,7 @@
             counts: '{n} giveaways · {afford} within reach',
             countsOne: '1 giveaway · {afford} within reach',
             noRows: 'no giveaways on this page',
-            sortTip: 'Puts the listing best-first by value per point. Featured stay in their own section, and the site\u2019s own blocks keep their place.',
+            sortTip: 'Puts the listing best-first by value per point. The ones your level cannot reach go to the end, whatever their value. Featured stay in their own section, and the site\u2019s own blocks keep their place.',
             aboutTip: 'What each number means, what the colours say and which site settings this assumes.',
             langTip: 'English and Spanish only: the site itself exists in one language. Auto follows your browser.',
             levelTip: 'Your contributor level and the giveaway value still missing for the next one.',
@@ -146,7 +146,7 @@
             counts: '{n} sorteos · {afford} a tu alcance',
             countsOne: '1 sorteo · {afford} a tu alcance',
             noRows: 'no hay sorteos en esta página',
-            sortTip: 'Ordena el listado de mejor a peor por valor por punto. Los destacados se quedan en su sección y los bloques del sitio no se mueven de sitio.',
+            sortTip: 'Ordena el listado de mejor a peor por valor por punto. Los que tu nivel no alcanza van al final, valgan lo que valgan. Los destacados se quedan en su propia sección, y los bloques del sitio conservan su sitio.',
             aboutTip: 'Qué significa cada número, qué dicen los colores y qué ajustes del sitio da por supuestos.',
             langTip: 'Solo inglés y español: el sitio existe en un idioma. Automático sigue al navegador.',
             levelTip: 'Tu nivel de contribuidor y el valor en sorteos que falta para el siguiente.',
@@ -250,6 +250,7 @@
         // Ficha de la página de un sorteo: el mismo dato repartido en otros
         // tres sitios —la cabecera destacada, el contador de la barra lateral
         // y el botón de entrar—.
+        gaWrap: '.featured__outer-wrap--giveaway',
         gaHeading: '.featured__heading',
         gaName: '.featured__heading__medium',
         gaSmall: '.featured__heading__small',
@@ -401,7 +402,12 @@
         }
         if (points === null) return null;
 
-        const c = heading.textContent.match(RE_COPIES_LOOSE);
+        // La cabecera primero y la ficha entera como red: no está confirmado
+        // en qué nodo cae la etiqueta de copias, así que se amplía el sitio
+        // donde se busca antes de dar por hecho que es de copia única.
+        const wrap = document.querySelector(SEL.gaWrap);
+        const c = heading.textContent.match(RE_COPIES_LOOSE)
+            || (wrap ? wrap.textContent.match(RE_COPIES_LOOSE) : null);
         const copies = c ? Math.max(1, toNumber(c[1])) : 1;
 
         const entriesEl = document.querySelector(SEL.gaEntries);
@@ -580,6 +586,12 @@
     }
 
     function byValue(a, b) {
+        // Los sorteos que tu nivel no alcanza van al final, valgan lo que
+        // valgan: el orden contesta a "dónde conviene gastar el saldo" y ahí
+        // no se puede gastar. Uno de 5P con 20 entradas daba 1,00 %/P y se
+        // ponía primero mientras la línea "Mejor" del widget —que sí los
+        // excluye— señalaba otro; esa contradicción era el fallo.
+        if (!!a.levelBlocked !== !!b.levelBlocked) return a.levelBlocked ? 1 : -1;
         const av = a.perPoint === null ? Infinity : a.perPoint;
         const bv = b.perPoint === null ? Infinity : b.perPoint;
         if (bv !== av) return bv - av;
@@ -763,6 +775,7 @@
         }
 
         const sortBtn = el('button', 'sgpv-w__btn');
+        sortBtn.title = t('sortTip');
         // Sin filas que reordenar el botón sigue visible pero inerte: quitarlo
         // movería de sitio todo lo de debajo cada vez que una búsqueda no
         // devuelve nada.
