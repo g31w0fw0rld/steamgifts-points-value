@@ -84,6 +84,9 @@
             kwSearchTip: 'Search SteamGifts for "{k}"',
             kwDelTip: 'Remove',
             kwNegTip: 'Negative: hides anything containing it, even if another keyword matches',
+            kwClear: 'Clear all ({n})',
+            kwClearSure: 'Click again to clear',
+            kwClearTip: 'Removes every keyword. Asks once before doing it.',
             holesTip: "For blocker users. SteamGifts slots its own bundle banners and ad slots between the rows; when a blocker empties them the container keeps its reserved height and leaves a ~200px gap. Ticking this folds away the blocks where nothing is painted — ads do not count as content, since a blocked one and a served one look the same from outside. A bundle banner that does load is left alone.",
             aboutTitle: 'What does this script do?',
             aboutName: 'Name:',
@@ -153,6 +156,9 @@
             kwSearchTip: 'Buscar «{k}» en SteamGifts',
             kwDelTip: 'Quitar',
             kwNegTip: 'Negativa: descarta lo que la contenga, aunque case otra palabra',
+            kwClear: 'Vaciar todas ({n})',
+            kwClearSure: 'Pulsa otra vez para vaciar',
+            kwClearTip: 'Quita todas las palabras. Pregunta una vez antes de hacerlo.',
             holesTip: 'Para quien use bloqueador. SteamGifts intercala entre las filas sus banners de bundles y sus huecos de anuncio; cuando un bloqueador los vacía, el contenedor conserva la altura reservada y deja un hueco de unos 200 px. Al marcarlo se pliegan los bloques donde no se pinta nada —la publicidad no cuenta como contenido, porque un anuncio bloqueado y uno servido se ven igual desde fuera—. Un banner de bundle que sí carga se queda como está.',
             aboutTitle: '¿Qué hace este script?',
             aboutName: 'Nombre:',
@@ -678,6 +684,31 @@
             const hits = list.filter(g => g.kw).length;
             kwWrap.appendChild(el('div', 'sgpv-w__line' + (hits ? ' sgpv-w__line--kw' : ''),
                 hits ? tn(hits, 'kwCount', { n: nf.format(hits) }) : t('kwNone')));
+
+            // Con listas largas, borrar de una en una con la × es inviable.
+            // Va en dos pasos y no con confirm(): un diálogo del navegador
+            // encima de la página es más intrusivo que un botón que pregunta.
+            const clear = el('button', 'sgpv-w__clear', t('kwClear', { n: nf.format(kws.length) }));
+            clear.type = 'button';
+            clear.title = t('kwClearTip');
+            let armed = false;
+            clear.addEventListener('click', () => {
+                if (!armed) {
+                    armed = true;
+                    clear.textContent = t('kwClearSure');
+                    clear.classList.add('sgpv-w__clear--armed');
+                    setTimeout(() => {
+                        if (!armed || !clear.isConnected) return;
+                        armed = false;
+                        clear.textContent = t('kwClear', { n: nf.format(readKeywords().length) });
+                        clear.classList.remove('sgpv-w__clear--armed');
+                    }, 4000);
+                    return;
+                }
+                saveKeywords([]);
+                run();
+            });
+            kwWrap.appendChild(clear);
         }
         body.appendChild(kwWrap);
 
@@ -1072,7 +1103,12 @@
             '.' + BADGE_CLASS + '--blocked{background:#b9c0c8;}',
             '.sgpv-row--best > .giveaway__row-inner-wrap{box-shadow:inset 4px 0 0 #3d8b37;}',
 
+            // Con muchas palabras guardadas, la lista de chips estiraba el
+            // widget hasta salirse por arriba de la ventana. Ahora el widget
+            // tiene techo y su cuerpo scrollea; los chips, además, tienen el
+            // suyo propio para no comerse el resto de los controles.
             '#' + WIDGET_ID + '{position:fixed;right:16px;bottom:16px;z-index:9999;width:248px;',
+            'max-height:calc(100vh - 32px);display:flex;flex-direction:column;',
             'background:#2f3947;color:#e6e9ee;border:1px solid #1d2530;border-radius:6px;',
             'box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:12px;line-height:1.45;}',
             '#' + WIDGET_ID + ' .sgpv-w__head{display:flex;align-items:center;justify-content:space-between;',
@@ -1082,7 +1118,8 @@
             'font-size:15px;line-height:1;padding:0 2px;}',
             '#' + WIDGET_ID + ' .sgpv-w__min:hover{color:#fff;}',
             '#' + WIDGET_ID + '.sgpv-w--min .sgpv-w__body{display:none;}',
-            '#' + WIDGET_ID + ' .sgpv-w__body{padding:10px;}',
+            '#' + WIDGET_ID + ' .sgpv-w__head{flex:0 0 auto;}',
+            '#' + WIDGET_ID + ' .sgpv-w__body{padding:10px;overflow-y:auto;min-height:0;}',
             '#' + WIDGET_ID + ' .sgpv-w__amount{font-size:24px;font-weight:700;color:#fff;}',
             '#' + WIDGET_ID + ' .sgpv-w__amount--cap{color:#ffcf66;cursor:help;}',
             '#' + WIDGET_ID + ' .sgpv-w__cap{font-size:11px;font-weight:600;}',
@@ -1120,7 +1157,8 @@
             'padding:4px 7px;border-radius:4px;border:1px solid #4a5568;background:#1f2733;',
             'color:#e6e9ee;}',
             '#' + WIDGET_ID + ' .sgpv-w__kw-input::placeholder{color:#7d8899;}',
-            '#' + WIDGET_ID + ' .sgpv-w__chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}',
+            '#' + WIDGET_ID + ' .sgpv-w__chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;',
+            'max-height:104px;overflow-y:auto;overscroll-behavior:contain;}',
             '#' + WIDGET_ID + ' .sgpv-w__chip{display:inline-flex;align-items:center;gap:3px;',
             'padding:1px 3px 1px 7px;border-radius:11px;border:1px solid #4a5568;background:#1f2733;',
             'font-size:11px;}',
@@ -1132,6 +1170,11 @@
             'color:#8b95a4;font:inherit;line-height:1;padding:0 3px;}',
             '#' + WIDGET_ID + ' .sgpv-w__chip-x:hover{color:#fff;}',
             '#' + WIDGET_ID + ' .sgpv-w__line--kw{color:#ffcf66;}',
+            '#' + WIDGET_ID + ' .sgpv-w__clear{margin-top:6px;cursor:pointer;font:inherit;',
+            'font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid #4a5568;',
+            'background:transparent;color:#9aa4b2;}',
+            '#' + WIDGET_ID + ' .sgpv-w__clear:hover{color:#fff;border-color:#7d8899;}',
+            '#' + WIDGET_ID + ' .sgpv-w__clear--armed{color:#ffcf66;border-color:#ffcf66;}',
             '#' + WIDGET_ID + ' .sgpv-w__check{display:flex;align-items:center;gap:7px;',
             'margin-top:10px;color:#b8c1cd;cursor:pointer;user-select:none;',
             'line-height:1.3;float:none;position:static;width:auto;}',
