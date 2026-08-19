@@ -1639,11 +1639,19 @@
     }
 
     // Con @match a todo el dominio, el widget solo tiene sentido donde hay
-    // sorteos: la portada y todo lo que cuelga de /giveaways, búsquedas
-    // incluidas. En el foro, el soporte o los ajustes no pinta nada.
+    // sorteos: la portada, todo lo que cuelga de /giveaways —búsquedas
+    // incluidas— y la ficha de un sorteo. En el foro, el soporte o los
+    // ajustes no pinta nada.
+    //
+    // Y, además, donde el sitio imprima filas de sorteo, cualquiera que sea
+    // la ruta: la página de un juego (`/game/<id>/…`, el "More Giveaways" de
+    // la ficha) lista lo mismo con el mismo marcado, y una lista de rutas se
+    // queda corta en cuanto el sitio añade otra. Se pregunta por el
+    // contenido, que es lo que de verdad decide si hay algo que calcular.
     function isGiveawayPage() {
         const path = location.pathname;
-        return path === '/' || path.startsWith('/giveaways') || isSinglePage();
+        if (path === '/' || path.startsWith('/giveaways') || isSinglePage()) return true;
+        return !!document.querySelector(SEL.row);
     }
 
     // La página de un sorteo y sus pestañas: /giveaway/<código>/... cuelga
