@@ -68,7 +68,14 @@
             auto: 'Auto',
             minimise: 'Minimise',
             holes: 'Hide empty gaps',
-            holesTip: "SteamGifts slots its own bundle banners between the rows. If a blocker empties them, the container keeps its reserved height and leaves a ~200px gap in the middle of the listing. This folds away only the ones showing nothing at all: a banner that does load is left alone.",
+            kwPlaceholder: 'keyword, or -keyword',
+            kwHint: 'Enter to add · click a keyword to search the site for it · × removes it',
+            kwCount: '{n} match your keywords',
+            kwNone: 'nothing matches your keywords',
+            kwSearchTip: 'Search SteamGifts for "{k}"',
+            kwDelTip: 'Remove',
+            kwNegTip: 'Negative: hides anything containing it, even if another keyword matches',
+            holesTip: "For blocker users. SteamGifts slots its own bundle banners and ad slots between the rows; when a blocker empties them the container keeps its reserved height and leaves a ~200px gap. Ticking this folds away the blocks where nothing is painted — ads do not count as content, since a blocked one and a served one look the same from outside. A bundle banner that does load is left alone.",
             aboutTitle: 'What does this script do?',
             aboutName: 'Name:',
             aboutVersion: 'Version:',
@@ -120,7 +127,14 @@
             auto: 'Automático',
             minimise: 'Minimizar',
             holes: 'Ocultar huecos vacíos',
-            holesTip: 'SteamGifts intercala entre las filas sus propios banners de bundles. Si un bloqueador los vacía, el contenedor conserva la altura reservada y deja un hueco de unos 200 px en mitad del listado. Esto pliega solo los que no muestran absolutamente nada: un banner que sí carga se queda como está.',
+            kwPlaceholder: 'palabra, o -palabra',
+            kwHint: 'Intro para añadir · pulsa una palabra para buscarla en el sitio · × la quita',
+            kwCount: '{n} coinciden con tus palabras',
+            kwNone: 'nada coincide con tus palabras',
+            kwSearchTip: 'Buscar «{k}» en SteamGifts',
+            kwDelTip: 'Quitar',
+            kwNegTip: 'Negativa: descarta lo que la contenga, aunque case otra palabra',
+            holesTip: 'Para quien use bloqueador. SteamGifts intercala entre las filas sus banners de bundles y sus huecos de anuncio; cuando un bloqueador los vacía, el contenedor conserva la altura reservada y deja un hueco de unos 200 px. Al marcarlo se pliegan los bloques donde no se pinta nada —la publicidad no cuenta como contenido, porque un anuncio bloqueado y uno servido se ven igual desde fuera—. Un banner de bundle que sí carga se queda como está.',
             aboutTitle: '¿Qué hace este script?',
             aboutName: 'Nombre:',
             aboutVersion: 'Versión:',
@@ -188,6 +202,7 @@
     const SORT_KEY = 'sgpv-sort';
     const MIN_KEY = 'sgpv-min';
     const HOLES_KEY = 'sgpv-holes';
+    const KW_KEY = 'sgpv-keywords';
 
     const nf = new Intl.NumberFormat(LANG === 'es' ? 'es' : 'en');
     // Dos decimales fijos: con parseFloat, un 1,40 %/P se imprimía "1,4", y
@@ -278,6 +293,54 @@
     }
 
     // ------------------------------------------------------------------
+    // Palabras clave
+    // ------------------------------------------------------------------
+    // Mismo trato que en los dos scripts de drops: positivas y negativas en
+    // UNA lista, las negativas con un `-` delante, y se separan al usarlas y
+    // no al guardarlas. Así el almacenamiento sigue siendo un array de
+    // cadenas y una versión vieja leería "-yakuza" como una palabra que no
+    // casa con nada, que es el fallo inofensivo.
+    function readKeywords() {
+        const raw = recall(KW_KEY);
+        if (!raw) return [];
+        try {
+            const arr = JSON.parse(raw);
+            return Array.isArray(arr) ? arr.filter(k => typeof k === 'string') : [];
+        } catch (e) { return []; }
+    }
+
+    function saveKeywords(list) {
+        store(KW_KEY, list.length ? JSON.stringify(list) : null);
+    }
+
+    function splitKeywords(list) {
+        const positive = [];
+        const negative = [];
+        (list || []).forEach(raw => {
+            const k = String(raw || '').trim().toLowerCase();
+            if (!k) return;
+            if (k.startsWith('-')) {
+                const body = k.slice(1).trim();
+                if (body) negative.push(body);
+            } else {
+                positive.push(k);
+            }
+        });
+        return { positive, negative };
+    }
+
+    // Casa si toca al menos una positiva Y ninguna negativa. La negativa manda
+    // a propósito: "yakuza" pero no "yakuza kiwami" solo sirve si gana lo
+    // segundo.
+    function matchesKeywords(text, list) {
+        const { positive, negative } = splitKeywords(list);
+        if (!positive.length) return false;
+        const hay = String(text).toLowerCase();
+        if (negative.some(k => hay.includes(k))) return false;
+        return positive.some(k => hay.includes(k));
+    }
+
+    // ------------------------------------------------------------------
     // Badges
     // ------------------------------------------------------------------
     function fmtOdds(g) {
@@ -318,6 +381,7 @@
     }
 
     function paint(g) {
+        g.row.classList.toggle('sgpv-row--kw', !!g.kw);
         const links = g.row.querySelector(SEL.links);
         if (!links) return;
         let badge = links.querySelector('.' + BADGE_CLASS);
@@ -513,6 +577,63 @@
         aboutBtn.type = 'button';
         aboutBtn.addEventListener('click', showAboutModal);
         body.appendChild(aboutBtn);
+
+        // Palabras clave: la caja añade, los chips buscan y la × quita.
+        const kws = readKeywords();
+        const kwWrap = el('div', 'sgpv-w__kw');
+        const kwInput = el('input');
+        kwInput.type = 'text';
+        kwInput.className = 'sgpv-w__kw-input';
+        kwInput.placeholder = t('kwPlaceholder');
+        kwInput.title = t('kwHint');
+        kwInput.addEventListener('keydown', ev => {
+            if (ev.key !== 'Enter') return;
+            ev.preventDefault();
+            const value = kwInput.value.trim();
+            if (!value) return;
+            const next = readKeywords();
+            if (!next.some(k => k.toLowerCase() === value.toLowerCase())) next.push(value);
+            saveKeywords(next);
+            kwInput.value = '';
+            run();
+        });
+        kwWrap.appendChild(kwInput);
+
+        if (kws.length) {
+            const chips = el('div', 'sgpv-w__chips');
+            kws.forEach(k => {
+                const negative = k.trim().startsWith('-');
+                const chip = el('span', 'sgpv-w__chip' + (negative ? ' sgpv-w__chip--neg' : ''));
+                const text = el('a', 'sgpv-w__chip-text', k);
+                // Un enlace de verdad: se puede abrir en pestaña nueva y
+                // copiar la dirección, como los botones de los otros scripts.
+                const term = negative ? k.trim().slice(1).trim() : k.trim();
+                text.href = '/giveaways/search?q=' + encodeURIComponent(term);
+                text.title = negative
+                    ? t('kwNegTip') + ' · ' + t('kwSearchTip', { k: term })
+                    : t('kwSearchTip', { k: term });
+                const del = el('button', 'sgpv-w__chip-x', '×');
+                del.type = 'button';
+                del.title = t('kwDelTip');
+                del.addEventListener('click', ev => {
+                    ev.preventDefault();
+                    saveKeywords(readKeywords().filter(x => x !== k));
+                    run();
+                });
+                chip.appendChild(text);
+                chip.appendChild(del);
+                chips.appendChild(chip);
+            });
+            kwWrap.appendChild(chips);
+
+            // Sobre la lista entera, destacados incluidos: si no, una
+            // coincidencia en la sección "Featured" quedaba resaltada en la
+            // página mientras el widget decía que no había ninguna.
+            const hits = list.filter(g => g.kw).length;
+            kwWrap.appendChild(el('div', 'sgpv-w__line' + (hits ? ' sgpv-w__line--kw' : ''),
+                hits ? t('kwCount', { n: nf.format(hits) }) : t('kwNone')));
+        }
+        body.appendChild(kwWrap);
 
         const holesRow = el('label', 'sgpv-w__check');
         const holesBox = el('input');
@@ -802,6 +923,24 @@
             // display:flex el <span> se comprimía hasta partir la etiqueta en
             // tres líneas con la casilla suelta a un lado. Cada pieza lleva
             // aquí su tamaño y su comportamiento de flex, sin heredar nada.
+            '.sgpv-row--kw > .giveaway__row-inner-wrap{background:rgba(255,207,102,.16);}',
+            '#' + WIDGET_ID + ' .sgpv-w__kw{margin-top:10px;}',
+            '#' + WIDGET_ID + ' .sgpv-w__kw-input{width:100%;box-sizing:border-box;font:inherit;',
+            'padding:4px 7px;border-radius:4px;border:1px solid #4a5568;background:#1f2733;',
+            'color:#e6e9ee;}',
+            '#' + WIDGET_ID + ' .sgpv-w__kw-input::placeholder{color:#7d8899;}',
+            '#' + WIDGET_ID + ' .sgpv-w__chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}',
+            '#' + WIDGET_ID + ' .sgpv-w__chip{display:inline-flex;align-items:center;gap:3px;',
+            'padding:1px 3px 1px 7px;border-radius:11px;border:1px solid #4a5568;background:#1f2733;',
+            'font-size:11px;}',
+            '#' + WIDGET_ID + ' .sgpv-w__chip--neg{border-style:dashed;border-color:#c26a6a;}',
+            '#' + WIDGET_ID + ' .sgpv-w__chip-text{color:#cfd6e0;text-decoration:none;cursor:pointer;}',
+            '#' + WIDGET_ID + ' .sgpv-w__chip--neg .sgpv-w__chip-text{color:#e29a9a;}',
+            '#' + WIDGET_ID + ' .sgpv-w__chip-text:hover{text-decoration:underline;}',
+            '#' + WIDGET_ID + ' .sgpv-w__chip-x{cursor:pointer;border:0;background:transparent;',
+            'color:#8b95a4;font:inherit;line-height:1;padding:0 3px;}',
+            '#' + WIDGET_ID + ' .sgpv-w__chip-x:hover{color:#fff;}',
+            '#' + WIDGET_ID + ' .sgpv-w__line--kw{color:#ffcf66;}',
             '#' + WIDGET_ID + ' .sgpv-w__check{display:flex;align-items:center;gap:7px;',
             'margin-top:10px;color:#b8c1cd;cursor:pointer;user-select:none;',
             'line-height:1.3;float:none;position:static;width:auto;}',
@@ -868,7 +1007,14 @@
                 if (child.naturalWidth > 0) return false;
                 continue;
             }
-            if (tag === 'IFRAME' || tag === 'VIDEO' || tag === 'CANVAS' || tag === 'SVG' || tag === 'INS') return false;
+            // La publicidad NO cuenta como contenido, y es deliberado: un
+            // <ins> de Google bloqueado y uno servido se ven igual desde
+            // fuera —ambos reservan su alto, y el iframe es de otro dominio,
+            // así que no hay forma de mirar dentro—. Marcar la casilla es la
+            // declaración del usuario de que usa bloqueador y de que ahí no
+            // ve nada; quien no la marque no pliega nada.
+            if (tag === 'INS' || tag === 'IFRAME') continue;
+            if (tag === 'VIDEO' || tag === 'CANVAS' || tag === 'SVG') return false;
             // Texto propio del nodo, no el heredado de sus descendientes: si
             // no, el contenedor de más arriba contaría por todos.
             for (const n of child.childNodes) {
@@ -910,6 +1056,8 @@
             return false;
         }
         injectCss();
+        const kws = readKeywords();
+        list.forEach(g => { g.kw = matchesKeywords(g.name, kws); });
         rankAll(list);
         list.forEach(paint);
         foldEmptyBlocks(list);
