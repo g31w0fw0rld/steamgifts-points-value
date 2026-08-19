@@ -232,25 +232,43 @@
 
     // Solo se reordena el listado corriente: los destacados viven en su
     // propio contenedor y moverlos de sitio rompería esa sección.
+    //
+    // Y se reordena POR HUECOS, no moviendo las filas al final. El sitio
+    // intercala entre ellas bloques promocionales propios (divs de clase
+    // ofuscada, uno cada trece filas y a veces vacíos): con appendChild
+    // esos bloques se quedaban agrupados arriba y abrían un vacío enorme
+    // sobre el listado. Cada fila deja un marcador en su sitio y las filas
+    // ya ordenadas ocupan esos mismos marcadores, así que lo ajeno no se
+    // mueve.
+    function reflow(plain, ordered) {
+        const anchors = plain.map(g => {
+            const mark = document.createComment('sgpv');
+            g.row.parentNode.insertBefore(mark, g.row);
+            return mark;
+        });
+        ordered.forEach((g, i) => {
+            const mark = anchors[i];
+            if (mark && mark.parentNode) mark.parentNode.replaceChild(g.row, mark);
+        });
+        // Un marcador sobrante solo puede quedar si el DOM cambió a mitad
+        // del reparto; se limpia en vez de dejarlo en la página.
+        anchors.forEach(m => { if (m.parentNode) m.parentNode.removeChild(m); });
+    }
+
     function applySort(list, on) {
         const plain = list.filter(g => !g.pinned);
         if (!plain.length) return;
-        const parent = plain[0].row.parentElement;
-        if (!parent) return;
 
-        if (on) {
-            const ordered = plain.slice().sort((a, b) => {
+        const ordered = on
+            ? plain.slice().sort((a, b) => {
                 const av = a.perPoint === null ? Infinity : a.perPoint;
                 const bv = b.perPoint === null ? Infinity : b.perPoint;
                 if (bv !== av) return bv - av;
                 return a.oneIn - b.oneIn;
-            });
-            ordered.forEach(g => parent.appendChild(g.row));
-        } else {
-            plain.slice()
-                .sort((a, b) => a.siteIndex - b.siteIndex)
-                .forEach(g => parent.appendChild(g.row));
-        }
+            })
+            : plain.slice().sort((a, b) => a.siteIndex - b.siteIndex);
+
+        reflow(plain, ordered);
 
         plain.forEach(g => g.row.classList.remove('sgpv-row--best'));
         if (on) {
