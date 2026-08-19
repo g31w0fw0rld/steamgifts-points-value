@@ -188,6 +188,22 @@
         return lines.join('\n');
     }
 
+    // El color del badge sale de comparar el sorteo con los demás de la
+    // misma página, no de umbrales fijos: un 0,4 %/P puede ser lo mejor de
+    // una tarde floja y lo peor de una buena.
+    function rankAll(list) {
+        const usable = list.filter(g => !g.levelBlocked && g.perPoint !== null);
+        const values = usable.map(g => g.perPoint).sort((a, b) => b - a);
+        const at = q => values.length ? values[Math.min(values.length - 1, Math.floor(values.length * q))] : 0;
+        const top = at(0.25);
+        const mid = at(0.60);
+        list.forEach(g => {
+            if (g.levelBlocked) { g.tier = 'blocked'; return; }
+            if (g.perPoint === null) { g.tier = 'good'; return; }
+            g.tier = g.perPoint >= top ? 'good' : (g.perPoint >= mid ? 'mid' : 'low');
+        });
+    }
+
     function paint(g) {
         const links = g.row.querySelector(SEL.links);
         if (!links) return;
@@ -200,7 +216,7 @@
         }
         badge.textContent = fmtOdds(g) + ' · ' + fmtPerPoint(g);
         badge.title = tooltipFor(g);
-        badge.classList.toggle('sgpv-badge--blocked', g.levelBlocked);
+        badge.className = BADGE_CLASS + ' ' + BADGE_CLASS + '--' + (g.tier || 'mid');
     }
 
     // ------------------------------------------------------------------
@@ -298,19 +314,25 @@
         const css = document.createElement('style');
         css.id = 'sgpv-css';
         css.textContent = [
-            '.' + BADGE_CLASS + '{margin-left:8px;padding:0 6px;border-radius:4px;',
-            'font-weight:700;white-space:nowrap;cursor:help;',
-            'color:var(--color-blue-3,#4b72d4);border:1px solid currentColor;}',
-            '.' + BADGE_CLASS + '--blocked{opacity:.45;font-weight:400;}',
+            // Píldora de fondo sólido: con solo borde, el badge se perdía
+            // entre los enlaces azules de "entries" y "comments" que tiene
+            // al lado en la misma fila.
+            '.' + BADGE_CLASS + '{display:inline-block;margin-left:10px;padding:2px 9px;',
+            'border-radius:11px;font-size:11px;font-weight:700;line-height:1.5;',
+            'white-space:nowrap;cursor:help;color:#fff !important;',
+            'text-shadow:none;background:#4b72d4;}',
+            '.' + BADGE_CLASS + '--good{background:#3d8b37;}',
+            '.' + BADGE_CLASS + '--mid{background:#4b72d4;}',
+            '.' + BADGE_CLASS + '--low{background:#7b8794;}',
+            '.' + BADGE_CLASS + '--blocked{background:#b9c0c8;}',
             '#' + BAR_ID + '{display:flex;align-items:center;justify-content:space-between;',
-            'gap:12px;margin:0 0 10px;padding:6px 10px;border-radius:4px;',
-            'background:var(--color-white,#fff);border:1px solid rgba(0,0,0,.12);',
-            'font-size:12px;}',
-            '.sgpv-bar__btn{cursor:pointer;font:inherit;font-weight:700;padding:3px 10px;',
-            'border-radius:4px;border:1px solid rgba(0,0,0,.2);background:transparent;',
-            'color:inherit;}',
-            '.sgpv-bar__btn:hover{border-color:currentColor;}',
-            '.sgpv-row--best > .giveaway__row-inner-wrap{box-shadow:inset 3px 0 0 var(--color-green-3,#5c8f3f);}',
+            'gap:12px;margin:0 0 10px;padding:8px 12px;border-radius:4px;',
+            'background:#eef1f5;border:1px solid rgba(0,0,0,.14);',
+            'font-size:13px;font-weight:600;color:#333;}',
+            '.sgpv-bar__btn{cursor:pointer;font:inherit;font-weight:700;padding:4px 12px;',
+            'border-radius:4px;border:1px solid #4b72d4;background:#fff;color:#4b72d4;}',
+            '.sgpv-bar__btn:hover{background:#4b72d4;color:#fff;}',
+            '.sgpv-row--best > .giveaway__row-inner-wrap{box-shadow:inset 4px 0 0 #3d8b37;}',
         ].join('');
         document.head.appendChild(css);
     }
@@ -335,6 +357,7 @@
         const list = collect();
         if (!list.length) return false;
         injectCss();
+        rankAll(list);
         list.forEach(paint);
         buildBar(list);
         if (sortWanted()) applySort(list, true);
