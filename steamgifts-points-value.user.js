@@ -62,14 +62,35 @@
             bestIs: 'Best: {odds} · {value}',
             sortValue: 'Sort by value',
             sortSite: "Site's order",
-            about: 'About',
+            about: 'ℹ️ Learn more',
+            close: 'Close',
             language: 'Language',
             auto: 'Auto',
             minimise: 'Minimise',
+            aboutTitle: 'What does this script do?',
+            aboutName: 'Name:',
+            aboutVersion: 'Version:',
+            aboutAuthor: 'Author:',
             aboutBody: [
-                'Odds are copies ÷ entries, and value is those odds ÷ what the giveaway costs: how much of a chance each point buys. Colours compare each giveaway with the others on the page, not against fixed thresholds.',
-                'This script filters nothing. SteamGifts does it better in Account → Settings → Giveaways, server-side. The setup this script assumes:',
-                '2, 3, 4, 5 and 6 set to Yes — games you own, DLC without the base game, above your level, already entered, and manually filtered. Leave 1 on All and 7 as you prefer.',
+                '▸ What it works out',
+                'Odds are copies ÷ entries: SteamGifts prints how many people entered, but the copies are what decides your chance, and a row without a copies label is a single copy.',
+                'Value is those odds ÷ what the giveaway costs, shown as a percentage per point: how much of a chance each point buys. That is the number that says where a full balance is worth spending, and no page on the site shows it.',
+                '▸ What the colours mean',
+                '• Green — the best quarter of this page.',
+                '• Blue — the middle of the pack.',
+                '• Dark grey — the worst of what is on offer here.',
+                '• Pale grey — your level does not reach it.',
+                'They compare the giveaways on the page against each other, not against fixed thresholds: a 0.4%/P can be the best of a quiet afternoon and the worst of a good one.',
+                '▸ Settings this script assumes',
+                '⚠ It filters nothing. SteamGifts does that server-side and better, in Account → Settings → Giveaways.',
+                '• 2. Hide games you already own → Yes',
+                "• 3. Hide DLC if you're missing the base game → Yes",
+                '• 4. Hide giveaways above your level → Yes',
+                "• 5. Hide giveaways you've already entered → Yes",
+                '• 6. Hide games you manually filtered → Yes',
+                'Leave 1 on All and 7 to taste. Without those, half the listing can be giveaways you cannot enter, and they drag the colour ranking with them.',
+                '▸ Privacy',
+                'Nothing is sent anywhere and no network request is made: everything shown is arithmetic on what the page already printed. Only your sort choice, whether the widget is folded and the language you picked are stored, on your own machine.',
             ],
             tipOdds: 'Real odds: {copies} copies shared between {entries} entries.',
             tipCost: 'Costs {points}P, so each point buys {v}% of a chance.',
@@ -91,14 +112,35 @@
             bestIs: 'Mejor: {odds} · {value}',
             sortValue: 'Ordenar por valor',
             sortSite: 'Orden del sitio',
-            about: 'Acerca de',
+            about: 'ℹ️ Saber más',
+            close: 'Cerrar',
             language: 'Idioma',
             auto: 'Automático',
             minimise: 'Minimizar',
+            aboutTitle: '¿Qué hace este script?',
+            aboutName: 'Nombre:',
+            aboutVersion: 'Versión:',
+            aboutAuthor: 'Autor:',
             aboutBody: [
-                'La probabilidad es copias ÷ entradas, y el valor es esa probabilidad ÷ lo que cuesta el sorteo: cuánta posibilidad compra cada punto. Los colores comparan cada sorteo con los demás de la página, no contra umbrales fijos.',
-                'Este script no filtra nada. SteamGifts lo hace mejor en Account → Settings → Giveaways, del lado del servidor. La configuración que este script da por supuesta:',
-                'Los puntos 2, 3, 4, 5 y 6 en Yes —juegos que ya tienes, DLC sin el juego base, por encima de tu nivel, en los que ya entraste y los filtrados a mano—. El 1 en All y el 7 a tu gusto.',
+                '▸ Qué calcula',
+                'La probabilidad es copias ÷ entradas: SteamGifts imprime cuánta gente entró, pero son las copias las que deciden tu opción, y una fila sin etiqueta de copias es de copia única.',
+                'El valor es esa probabilidad ÷ lo que cuesta el sorteo, en porcentaje por punto: cuánta posibilidad compra cada punto. Ese es el número que dice dónde conviene gastar un saldo lleno, y no aparece en ninguna página del sitio.',
+                '▸ Qué dicen los colores',
+                '• Verde: el mejor cuarto de esta página.',
+                '• Azul: el término medio.',
+                '• Gris oscuro: lo peor de lo que hay aquí.',
+                '• Gris claro: tu nivel no llega.',
+                'Comparan los sorteos de la página entre sí, no contra umbrales fijos: un 0,4 %/P puede ser lo mejor de una tarde floja y lo peor de una buena.',
+                '▸ Ajustes que este script da por supuestos',
+                '⚠ No filtra nada. Eso lo hace SteamGifts del lado del servidor y mejor, en Account → Settings → Giveaways.',
+                '• 2. Hide games you already own → Yes',
+                "• 3. Hide DLC if you're missing the base game → Yes",
+                '• 4. Hide giveaways above your level → Yes',
+                "• 5. Hide giveaways you've already entered → Yes",
+                '• 6. Hide games you manually filtered → Yes',
+                'Deja el 1 en All y el 7 a tu gusto. Sin eso, media página pueden ser sorteos en los que no puedes entrar, y arrastran con ellos el reparto de colores.',
+                '▸ Privacidad',
+                'No se envía nada a ninguna parte ni se hace ninguna petición de red: todo lo que ves son cuentas sobre lo que la página ya había impreso. Solo se guardan tu elección de orden, si el widget está plegado y el idioma que elegiste, en tu propia máquina.',
             ],
             tipOdds: 'Probabilidad real: {copies} copias repartidas entre {entries} entradas.',
             tipCost: 'Cuesta {points}P, así que cada punto compra un {v}% de posibilidad.',
@@ -431,14 +473,8 @@
 
         const aboutBtn = el('button', 'sgpv-w__btn sgpv-w__btn--ghost', t('about'));
         aboutBtn.type = 'button';
-        const about = el('div', 'sgpv-w__about');
-        T.aboutBody.forEach(p => about.appendChild(el('p', null, p)));
-        about.style.display = 'none';
-        aboutBtn.addEventListener('click', () => {
-            about.style.display = about.style.display === 'none' ? 'block' : 'none';
-        });
+        aboutBtn.addEventListener('click', showAboutModal);
         body.appendChild(aboutBtn);
-        body.appendChild(about);
 
         const langRow = el('div', 'sgpv-w__lang');
         langRow.appendChild(el('span', null, t('language')));
@@ -455,6 +491,216 @@
 
         w.appendChild(body);
         return w;
+    }
+
+    // ------------------------------------------------------------------
+    // Modal «Saber más»
+    // ------------------------------------------------------------------
+    // Misma estructura que el de los demás scripts: ficha en rejilla arriba,
+    // cuerpo scrollable con marcadores (▸ sección, ⚠ aviso, • punto) y un
+    // único botón de cierre. Cambia solo la paleta, que aquí es la de la
+    // cabecera de SteamGifts.
+    const ABOUT_ID = 'sgpv-about-overlay';
+    const ABOUT_NAME = 'SteamGifts Points Value';
+    const ABOUT_REPO = 'g31w0fw0rld/steamgifts-points-value';
+    const ABOUT_BG = '#2f3947';
+    const ABOUT_FG = '#e6e9ee';
+    const ABOUT_ACCENT = '#9fb4e8';
+    const ABOUT_BTN = '#4b72d4';
+    const ABOUT_WARN = '#ffcf66';
+    const ABOUT_LINE = '#3c4757';
+    const ABOUT_MUTED = '#9aa4b2';
+    const ABOUT_ITEM = '#d5dbe4';
+
+    // El separador de las etiquetas se toma de una ya traducida, para que
+    // "GitHub" y "Ko-fi" —que no se traducen— no contradigan la puntuación
+    // del idioma activo.
+    function aboutColon() {
+        const m = String(T.aboutVersion || ':').match(/\s*[:：]\s*$/);
+        return m ? m[0] : ':';
+    }
+
+    // Marca inerte el resto de la página mientras el modal está abierto, y
+    // guarda lo que hubiera para devolverlo tal cual al cerrar: sin esto el
+    // tabulador se pasea por la página que hay detrás del overlay.
+    function aboutSetInert(overlay, on) {
+        if (on) {
+            const saved = [];
+            Array.from(document.body.children).forEach(node => {
+                if (node === overlay) return;
+                saved.push({ el: node, ariaHidden: node.getAttribute('aria-hidden') });
+                try { node.setAttribute('aria-hidden', 'true'); node.inert = true; } catch (e) { /* noop */ }
+            });
+            overlay._savedInert = saved;
+        } else {
+            (overlay._savedInert || []).forEach(sv => {
+                try {
+                    if (sv.ariaHidden === null) sv.el.removeAttribute('aria-hidden');
+                    else sv.el.setAttribute('aria-hidden', sv.ariaHidden);
+                    sv.el.inert = false;
+                } catch (e) { /* noop */ }
+            });
+            overlay._savedInert = null;
+        }
+    }
+
+    function aboutRow(raw, prevKind) {
+        const text = String(raw).replace(/^\s+/, '');
+        const row = el('div');
+        let kind = 'plain';
+        if (text.startsWith('▸')) {
+            kind = 'head';
+            row.textContent = text.slice(1).trim();
+            Object.assign(row.style, {
+                color: ABOUT_ACCENT, fontWeight: '700', fontSize: '15px',
+                marginBottom: '8px', marginTop: prevKind ? '20px' : '0',
+            });
+        } else if (text.startsWith('⚠')) {
+            kind = 'warn';
+            row.textContent = text;
+            Object.assign(row.style, {
+                color: ABOUT_WARN, fontWeight: '600', marginBottom: '10px',
+                paddingInlineStart: '26px', textIndent: '-26px',
+            });
+        } else if (text.startsWith('•')) {
+            kind = 'item';
+            row.textContent = text;
+            Object.assign(row.style, {
+                paddingInlineStart: '24px', textIndent: '-14px',
+                marginBottom: '7px', color: ABOUT_ITEM,
+            });
+        } else {
+            row.textContent = text;
+            row.style.marginBottom = '10px';
+            // Un párrafo suelto detrás de una lista es la coda del bloque, no
+            // otro punto: sin este respiro se lee pegado al último.
+            if (prevKind && prevKind !== 'plain' && prevKind !== 'warn') row.style.marginTop = '16px';
+        }
+        return { row, kind };
+    }
+
+    function showAboutModal() {
+        if (document.getElementById(ABOUT_ID)) return;
+
+        const overlay = el('div');
+        overlay.id = ABOUT_ID;
+        Object.assign(overlay.style, {
+            position: 'fixed', inset: '0', width: '100%', height: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '24px', boxSizing: 'border-box',
+            background: 'rgba(0,0,0,0.6)', zIndex: '2147483647',
+            transition: 'opacity 180ms ease', opacity: '0',
+        });
+
+        const box = el('div');
+        Object.assign(box.style, {
+            background: ABOUT_BG, color: ABOUT_FG, borderRadius: '14px',
+            padding: '26px 30px', minWidth: 'min(340px, 100%)', maxWidth: '580px',
+            maxHeight: '100%', boxSizing: 'border-box',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)', border: '1px solid ' + ABOUT_BTN,
+            fontFamily: 'system-ui, sans-serif', fontSize: '14px', lineHeight: '1.55',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            transform: 'translateY(8px) scale(0.98)', opacity: '0',
+            transition: 'transform 180ms ease, opacity 180ms ease',
+        });
+
+        const hairline = () => {
+            const hr = el('div');
+            Object.assign(hr.style, { height: '1px', background: ABOUT_LINE, margin: '14px 0', flexShrink: '0' });
+            return hr;
+        };
+
+        const head = el('div');
+        head.style.flexShrink = '0';
+        const title = el('div', null, t('aboutTitle'));
+        title.style.cssText = 'font-weight:bold;font-size:17px;margin-bottom:12px;color:' + ABOUT_ACCENT + ';';
+        head.appendChild(title);
+
+        const meta = el('div');
+        Object.assign(meta.style, {
+            display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)',
+            columnGap: '10px', rowGap: '5px', fontSize: '13px',
+        });
+        const colon = aboutColon();
+        [
+            { label: t('aboutName'), value: ABOUT_NAME },
+            { label: t('aboutVersion'), value: SCRIPT_VERSION },
+            { label: t('aboutAuthor'), value: 'g31w0fw0rld' },
+            { label: 'GitHub' + colon, value: 'github.com/' + ABOUT_REPO, isLink: true },
+            { label: '☕ Ko-fi' + colon, value: 'ko-fi.com/g31w0fw0rld', isLink: true },
+        ].forEach(r => {
+            const label = el('div', null, r.label);
+            Object.assign(label.style, { fontWeight: '600', color: ABOUT_MUTED, whiteSpace: 'nowrap' });
+            meta.appendChild(label);
+            const val = el('div');
+            // Sin esto la URL no parte y estira la caja más allá de su maxWidth.
+            Object.assign(val.style, { minWidth: '0', overflowWrap: 'anywhere' });
+            if (r.isLink) {
+                const a = el('a', null, r.value);
+                a.href = 'https://' + r.value;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.style.color = ABOUT_ACCENT;
+                a.style.textDecoration = 'underline';
+                val.appendChild(a);
+            } else {
+                val.textContent = r.value;
+            }
+            meta.appendChild(val);
+        });
+        head.appendChild(meta);
+        head.appendChild(hairline());
+        box.appendChild(head);
+
+        const body = el('div');
+        Object.assign(body.style, { overflowY: 'auto', minHeight: '0', paddingInlineEnd: '4px' });
+        let prevKind = null;
+        (T.aboutBody || []).forEach(p => {
+            const { row, kind } = aboutRow(p, prevKind);
+            body.appendChild(row);
+            prevKind = kind;
+        });
+        box.appendChild(body);
+        box.appendChild(hairline());
+
+        const closeBtn = el('button', null, t('close'));
+        closeBtn.type = 'button';
+        closeBtn.style.cssText = 'flex-shrink:0;align-self:center;padding:8px 18px;background:'
+            + ABOUT_BTN + ';color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;';
+        closeBtn.addEventListener('mouseenter', () => { closeBtn.style.opacity = '0.85'; });
+        closeBtn.addEventListener('mouseleave', () => { closeBtn.style.opacity = '1'; });
+        box.appendChild(closeBtn);
+
+        // El listener de Escape vive en document —el modal no tiene por qué
+        // tener el foco dentro cuando llega la tecla—, así que hay que
+        // quitarlo SIEMPRE al cerrar, también desde el botón: si no, se
+        // acumula uno por cada apertura.
+        const closeIt = () => {
+            document.removeEventListener('keydown', onKey);
+            overlay.removeEventListener('click', onClick);
+            overlay.style.opacity = '0';
+            box.style.opacity = '0';
+            box.style.transform = 'translateY(8px) scale(0.98)';
+            setTimeout(() => { aboutSetInert(overlay, false); overlay.remove(); }, 180);
+        };
+        const onKey = e => { if (e.key === 'Escape') closeIt(); };
+        // Solo el fondo: un clic dentro de la caja no debe cerrar.
+        const onClick = e => { if (e.target === overlay) closeIt(); };
+        closeBtn.addEventListener('click', closeIt);
+        overlay.addEventListener('click', onClick);
+        document.addEventListener('keydown', onKey);
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        aboutSetInert(overlay, true);
+        setTimeout(() => {
+            overlay.style.opacity = '1';
+            box.style.transform = 'translateY(0) scale(1)';
+            box.style.opacity = '1';
+        }, 10);
+        // Sin esto el foco se queda en el botón del widget, que aboutSetInert
+        // acaba de marcar inert, y se cae a <body>.
+        setTimeout(() => { try { closeBtn.focus(); } catch (e) { /* noop */ } }, 120);
     }
 
     // ------------------------------------------------------------------
@@ -500,8 +746,6 @@
             'background:#4b72d4;color:#fff;}',
             '#' + WIDGET_ID + ' .sgpv-w__btn:hover{filter:brightness(1.12);}',
             '#' + WIDGET_ID + ' .sgpv-w__btn--ghost{background:transparent;color:#9fb4e8;}',
-            '#' + WIDGET_ID + ' .sgpv-w__about{margin-top:8px;color:#b8c1cd;}',
-            '#' + WIDGET_ID + ' .sgpv-w__about p{margin:0 0 6px;}',
             '#' + WIDGET_ID + ' .sgpv-w__lang{display:flex;align-items:center;justify-content:space-between;',
             'gap:6px;margin-top:10px;color:#9aa4b2;}',
             '#' + WIDGET_ID + ' .sgpv-w__lang select{font:inherit;padding:2px 4px;border-radius:3px;',
