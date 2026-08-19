@@ -298,6 +298,14 @@
         gaEnter: '.sidebar__entry-insert',
         gaRemove: '.sidebar__entry-delete',
         gaPoints: '.sidebar__entry__points',
+        // Firma de los bloques que el sitio intercala entre las filas. La
+        // clase del contenedor es ofuscada y cambia en cada carga —se han
+        // visto `idbknxm`, `wdisf` y `kzbjrk`—, así que no sirve para
+        // reconocerlos; lo que no cambia es lo que llevan dentro: el banner de
+        // bundle de Humble/Fanatical, el hueco de anuncio de Google, o los dos.
+        promo: '.fanatical_container, ins.adsbygoogle',
+        pagination: '.pagination',
+        pagResults: '.pagination__results',
     };
 
     // Tope de puntos de la cuenta: por encima no se acumula nada.
@@ -1613,6 +1621,7 @@
             // su propia hoja: sin la marca, una regla suya con la misma
             // especificidad y más abajo ganaría.
             '.sgpv-row--off{display:none !important;}',
+            '.sgpv-off{display:none !important;}',
             // Contorno y no sombra: el marco ámbar de coincidencia y la barra
             // verde de mejor valor ya usan box-shadow, y el destello tiene que
             // verse encima de los dos.
@@ -1816,14 +1825,27 @@
         return false;
     }
 
+    // Se pliega SOLO lo que se reconoce, y no "todo lo que no sea una fila":
+    // en ese contenedor viven también la paginación y las tablas de Deals y
+    // Discussions del final, y plegar a ciegas lo que no se identifica es
+    // pedirle al script que esconda cosas del sitio que nadie ha mirado.
+    //
+    // Un contenedor vacío de elementos cuenta también: solo puede ser un
+    // separador con altura reservada, que es exactamente el hueco a plegar.
+    function isPromoBlock(node) {
+        if (node.classList.contains('giveaway__row-outer-wrap')) return false;
+        if (node.id === WIDGET_ID || node.id === MATCH_ID) return false;
+        if (node.querySelector(SEL.row)) return false;
+        return !!node.querySelector(SEL.promo) || !node.firstElementChild;
+    }
+
     function foldEmptyBlocks(list) {
         const host = list.find(g => !g.pinned && g.row.parentElement);
         if (!host) return 0;
         const on = recall(HOLES_KEY) === '1';
         let folded = 0;
         Array.from(host.row.parentElement.children).forEach(node => {
-            if (node.classList.contains('giveaway__row-outer-wrap')) return;
-            if (node.id === WIDGET_ID) return;
+            if (!isPromoBlock(node)) return;
             const wasFolded = node.dataset.sgpvFolded === '1';
             const fold = on && (wasFolded ? !hasLoadedImage(node) : showsNothing(node));
             if (fold) {
@@ -1838,6 +1860,29 @@
             }
         });
         return folded;
+    }
+
+    // Al traer páginas a esta, la paginación del sitio empieza a mentir: su
+    // "Displaying 1 to 50" contradice las 201 filas que hay delante. Pero no se
+    // esconde entera de golpe, porque sus dos mitades no valen lo mismo:
+    //
+    // - `pagination__results` es una AFIRMACIÓN, y es falsa en cuanto se añade
+    //   la primera fila. Se oculta desde ese momento; el widget ya dice
+    //   cuántas páginas y cuántos sorteos entraron.
+    // - `pagination__navigation` es una HERRAMIENTA, y sigue sirviendo si la
+    //   carga se paró a medias o si una página falló: son las páginas que
+    //   quedan por ver. Solo se oculta cuando el sitio dijo que no había más,
+    //   que es cuando ya no lleva a ninguna parte.
+    //
+    // En la ficha de un sorteo no se toca: ahí `.pagination` es la de los
+    // comentarios, y no la hemos tocado nosotros.
+    function foldPagination() {
+        if (isSinglePage() || !loadState || !loadState.added) return;
+        Array.from(document.querySelectorAll(SEL.pagination)).forEach(pag => {
+            const results = pag.querySelector(SEL.pagResults);
+            if (results) results.classList.add('sgpv-off');
+            if (loadState.exhausted) pag.classList.add('sgpv-off');
+        });
     }
 
     // Con @match a todo el dominio, el widget solo tiene sentido donde hay
@@ -1886,6 +1931,7 @@
         }
         buildWidget(list, solo);
         buildMatchesPanel(list, solo);
+        foldPagination();
         if (recall(SORT_KEY) === '1') applySort(list, true);
         return true;
     }
