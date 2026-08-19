@@ -96,6 +96,7 @@
                 '▸ What it works out',
                 'Odds are copies ÷ entries: SteamGifts prints how many people entered, but the copies are what decides your chance, and a row without a copies label is a single copy.',
                 'Value is those odds ÷ what the giveaway costs, shown as a percentage per point: how much of a chance each point buys. That is the number that says where a full balance is worth spending, and no page on the site shows it.',
+                'One button pulls the pages after the one you are on into this one, keeping whatever search and filters you already have, so a whole search can be read, ranked and sorted in a single page instead of thirteen at a time.',
                 'Inside a giveaway it reads that one too: the same odds and value next to its title and in the widget, plus what your balance is left at if you enter. There is nothing else on that page to compare against, so that badge carries no ranking colour.',
                 '▸ What the colours mean',
                 '• Green — the best quarter of this page.',
@@ -112,7 +113,9 @@
                 '• 6. Hide games you manually filtered → Yes',
                 'Leave 1 on All and 7 to taste. Without those, half the listing can be giveaways you cannot enter, and they drag the colour ranking with them.',
                 '▸ Privacy',
-                'Nothing is sent anywhere and no network request is made: everything shown is arithmetic on what the page already printed. Only your sort choice, whether the widget is folded and the language you picked are stored, on your own machine.',
+                'Nothing is sent to the author or to any third party. Everything you see on a page is arithmetic on what that page had already printed.',
+                '⚠ One thing does go to the network, and only when you press it: "Load every page" asks this same site for the pages after this one, with your session, exactly as clicking a page number in its own pagination would. Nothing else leaves your browser.',
+                'What is stored, on your own machine: whether you left the listing sorted by value, whether the widget is folded, the language you picked, whether you asked for the empty gaps to be folded, and your keywords.',
             ],
             tipOdds: 'Real odds: {copies} copies shared between {entries} entries.',
             tipOddsOne: 'Real odds: a single copy shared between {entries} entries.',
@@ -131,6 +134,13 @@
             gaFree: 'Costs no points',
             gaIn: '✓ You are already in',
             gaKwHit: 'Matches your keywords',
+            loadAll: '⬇ Load every page',
+            loadStop: 'Loading page {n}… — stop',
+            loadTip: 'Asks the site for the pages after this one and drops their giveaways at the end of this listing, so the whole search fits on one page. It keeps whatever search and filters the address bar already has. This is the only thing in the script that goes to the network: one request per page, {delay}s apart, up to {max} pages, and you can stop it at any point.',
+            loadDone: '{pages} pages more · {n} giveaways added',
+            loadDoneOne: '1 page more · {n} giveaways added',
+            loadNoMore: 'nothing more to load: this was the last page',
+            loadFail: 'page {n} did not answer — what had loaded stays',
         },
         es: {
             oneIn: '1 de {n}',
@@ -181,6 +191,7 @@
                 '▸ Qué calcula',
                 'La probabilidad es copias ÷ entradas: SteamGifts imprime cuánta gente entró, pero son las copias las que deciden tu opción, y una fila sin etiqueta de copias es de copia única.',
                 'El valor es esa probabilidad ÷ lo que cuesta el sorteo, en porcentaje por punto: cuánta posibilidad compra cada punto. Ese es el número que dice dónde conviene gastar un saldo lleno, y no aparece en ninguna página del sitio.',
+                'Un botón trae a esta página las siguientes a la que estás, respetando la búsqueda y los filtros que ya tengas, para poder leer, valorar y ordenar una búsqueda entera de una vez en vez de de trece en trece.',
                 'Dentro de un sorteo lee también ese: la misma probabilidad y el mismo valor junto a su título y en el widget, además de en cuánto queda tu saldo si entras. Ahí no hay nada con lo que comparar, así que esa píldora no lleva color de rango.',
                 '▸ Qué dicen los colores',
                 '• Verde: el mejor cuarto de esta página.',
@@ -197,7 +208,9 @@
                 '• 6. Hide games you manually filtered → Yes',
                 'Deja el 1 en All y el 7 a tu gusto. Sin eso, media página pueden ser sorteos en los que no puedes entrar, y arrastran con ellos el reparto de colores.',
                 '▸ Privacidad',
-                'No se envía nada a ninguna parte ni se hace ninguna petición de red: todo lo que ves son cuentas sobre lo que la página ya había impreso. Solo se guardan tu elección de orden, si el widget está plegado y el idioma que elegiste, en tu propia máquina.',
+                'No se envía nada al autor ni a ningún tercero. Todo lo que ves en una página son cuentas sobre lo que esa página ya había impreso.',
+                '⚠ Una sola cosa sale a la red, y solo cuando la pulsas: «Cargar todas las páginas» le pide a este mismo sitio las páginas siguientes a esta, con tu sesión, igual que si pulsaras un número en su propia paginación. Nada más sale de tu navegador.',
+                'Lo que se guarda, en tu propia máquina: si dejaste el listado ordenado por valor, si el widget está plegado, el idioma que elegiste, si pediste plegar los huecos vacíos y tus palabras clave.',
             ],
             tipOdds: 'Probabilidad real: {copies} copias repartidas entre {entries} entradas.',
             tipOddsOne: 'Probabilidad real: una sola copia repartida entre {entries} entradas.',
@@ -216,6 +229,13 @@
             gaFree: 'No cuesta puntos',
             gaIn: '✓ Ya estás dentro',
             gaKwHit: 'Coincide con tus palabras clave',
+            loadAll: '⬇ Cargar todas las páginas',
+            loadStop: 'Cargando la página {n}… — parar',
+            loadTip: 'Le pide al sitio las páginas siguientes a esta y deja sus sorteos al final del listado, para que la búsqueda entera quepa en una sola página. Respeta la búsqueda y los filtros que ya tenga la barra de direcciones. Es lo único del script que sale a la red: una petición por página, cada {delay} s, hasta {max} páginas, y se puede parar en cualquier momento.',
+            loadDone: '{pages} páginas más · {n} sorteos añadidos',
+            loadDoneOne: '1 página más · {n} sorteos añadidos',
+            loadNoMore: 'no hay nada más que cargar: esta era la última página',
+            loadFail: 'la página {n} no contestó — se queda lo que se había cargado',
         },
     };
 
@@ -264,6 +284,12 @@
     const POINTS_CAP = 400;
     // Valor en dólares regalados con el que empieza cada nivel, del 1 al 10.
     const LEVEL_STEPS = [0.01, 25, 50, 100, 250, 500, 1000, 2000, 3000, 5000];
+
+    // Una petición por página y con pausa: el sitio es pequeño y esto se pide
+    // a mano, así que no hay prisa. El tope existe para que un listado de
+    // cientos de páginas no se cargue entero por un clic.
+    const LOAD_MAX_PAGES = 20;
+    const LOAD_DELAY_MS = 700;
 
     const MARK = 'sgpvDone';
     const BADGE_CLASS = 'sgpv-badge';
@@ -624,6 +650,126 @@
     }
 
     // ------------------------------------------------------------------
+    // Cargar las páginas siguientes en esta
+    // ------------------------------------------------------------------
+    // Lo único del script que sale a la red, y solo cuando se pulsa el botón.
+    // Pide la misma URL que tienes delante con otro `page`, así que la
+    // búsqueda y los filtros del sitio viajan tal cual; va con la sesión,
+    // igual que si pulsaras "2" en la paginación.
+    //
+    // El bucle NO se guía por la paginación del sitio, se guía por lo que
+    // llega: para cuando una página no trae ninguna fila nueva. Así funciona
+    // igual si el listado tiene una sola página, si el sitio ignora el
+    // parámetro y devuelve la misma, o si la maquetación de la paginación
+    // cambia mañana.
+    let loadState = null;
+
+    function rowCode(row) {
+        const link = row.querySelector(SEL.name);
+        const m = link && String(link.getAttribute('href') || '').match(/\/giveaway\/([^/]+)/);
+        return m ? m[1] : null;
+    }
+
+    function pageUrl(n) {
+        const u = new URL(location.href);
+        u.searchParams.set('page', String(n));
+        return u.toString();
+    }
+
+    function sleep(ms) {
+        return new Promise(done => setTimeout(done, ms));
+    }
+
+    // Las filas de aquí, sin las destacadas: la sección "Featured" se repite
+    // en TODAS las páginas, así que sus sorteos llegarían duplicados.
+    function plainRows(scope) {
+        return Array.from(scope.querySelectorAll(SEL.row)).filter(r => !r.closest(SEL.pinned));
+    }
+
+    async function loadFollowingPages() {
+        const seen = new Set();
+        plainRows(document).forEach(r => {
+            const code = rowCode(r);
+            if (code) seen.add(code);
+        });
+
+        let page = loadState.from;
+        const out = { pages: 0, added: 0, error: null, more: true };
+
+        while (out.pages < LOAD_MAX_PAGES && !loadState.stop) {
+            await sleep(LOAD_DELAY_MS);
+            if (loadState.stop) break;
+            page++;
+
+            let doc;
+            try {
+                const res = await fetch(pageUrl(page), { credentials: 'same-origin' });
+                if (!res.ok) throw new Error(String(res.status));
+                doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+            } catch (e) {
+                out.error = page;
+                break;
+            }
+
+            // El ancla se vuelve a buscar en cada página y no se arrastra de
+            // la anterior: si el listado está ordenado por valor, entre una
+            // página y la siguiente las filas se han movido de sitio.
+            const here = plainRows(document);
+            let anchor = here[here.length - 1];
+            if (!anchor || !anchor.parentNode) { out.error = page; break; }
+
+            let fresh = 0;
+            plainRows(doc).forEach(r => {
+                const code = rowCode(r);
+                // Sin código no hay forma de saber si ya está: se descarta,
+                // que es mejor que duplicarla.
+                if (!code || seen.has(code)) return;
+                seen.add(code);
+                const node = document.importNode(r, true);
+                anchor.parentNode.insertBefore(node, anchor.nextSibling);
+                anchor = node;
+                fresh++;
+            });
+
+            // Ni una fila nueva: era la última página, o el sitio devolvió la
+            // misma. En los dos casos no hay más que pedir.
+            if (!fresh) { out.more = false; break; }
+
+            out.added += fresh;
+            out.pages++;
+            loadState.pages = out.pages;
+            loadState.added = out.added;
+            // Repinta lo nuevo y, de paso, el propio botón con su cuenta: el
+            // estado vive fuera del widget, así que sobrevive al repintado.
+            run();
+        }
+        return out;
+    }
+
+    function startLoadAll() {
+        if (loadState && loadState.running) return;
+        loadState = {
+            running: true, stop: false, pages: 0, added: 0, note: '', exhausted: false,
+            // La página en la que estás: el contador del botón cuenta desde
+            // ahí, que es la que se está pidiendo, y no desde 1.
+            from: parseInt(new URL(location.href).searchParams.get('page'), 10) || 1,
+        };
+        run();
+        loadFollowingPages().then(res => {
+            loadState.running = false;
+            // Solo se da por agotado si el sitio dijo que no había más. Si lo
+            // paraste tú o si falló una página, el botón sigue disponible.
+            loadState.exhausted = !res.error && !res.more;
+            loadState.note = res.error
+                ? t('loadFail', { n: nf.format(res.error) })
+                : (res.added
+                    ? tn(res.pages, 'loadDone', { pages: nf.format(res.pages), n: nf.format(res.added) })
+                    : t('loadNoMore'));
+            run();
+        });
+    }
+
+    // ------------------------------------------------------------------
     // Widget
     // ------------------------------------------------------------------
     function levelLine(acc) {
@@ -800,6 +946,32 @@
         // Fuera del listado el botón no se deja inerte, se quita: en la ficha
         // de un sorteo no hay nada que reordenar, ni ahora ni luego.
         if (!solo) body.appendChild(sortBtn);
+
+        // El botón de cargar solo tiene sentido donde hay un listado que
+        // continuar, y por eso no se pinta en la ficha de un sorteo.
+        if (!solo) {
+            const loadBtn = el('button', 'sgpv-w__btn sgpv-w__btn--ghost');
+            loadBtn.type = 'button';
+            loadBtn.title = t('loadTip', {
+                max: nf.format(LOAD_MAX_PAGES),
+                delay: nf.format(Math.round(LOAD_DELAY_MS / 100) / 10),
+            });
+            if (loadState && loadState.running) {
+                loadBtn.textContent = t('loadStop', {
+                    n: nf.format(loadState.from + loadState.pages + 1),
+                });
+                loadBtn.classList.add('sgpv-w__btn--on');
+                loadBtn.addEventListener('click', () => { loadState.stop = true; });
+            } else {
+                loadBtn.textContent = t('loadAll');
+                loadBtn.disabled = !plain.length || !!(loadState && loadState.exhausted);
+                loadBtn.addEventListener('click', startLoadAll);
+            }
+            body.appendChild(loadBtn);
+            if (loadState && loadState.note) {
+                body.appendChild(el('div', 'sgpv-w__line', loadState.note));
+            }
+        }
 
         const aboutBtn = el('button', 'sgpv-w__btn sgpv-w__btn--ghost', t('about'));
         aboutBtn.type = 'button';
