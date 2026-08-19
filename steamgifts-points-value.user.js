@@ -429,7 +429,16 @@
         const plain = list.filter(g => !g.pinned);
         const best = bestOf(plain);
 
-        let w = document.getElementById(WIDGET_ID);
+        // En una página sin listado propio —la ficha de un sorteo, con sus
+        // destacados al lado— no hay nada que resumir, y el widget salía
+        // anunciando "0 sorteos · 0 a tu alcance".
+        const old = document.getElementById(WIDGET_ID);
+        if (!plain.length) {
+            if (old) old.remove();
+            return null;
+        }
+
+        let w = old;
         if (!w) {
             w = el('div', null);
             w.id = WIDGET_ID;
@@ -767,7 +776,7 @@
             '.' + BADGE_CLASS + '--blocked{background:#b9c0c8;}',
             '.sgpv-row--best > .giveaway__row-inner-wrap{box-shadow:inset 4px 0 0 #3d8b37;}',
 
-            '#' + WIDGET_ID + '{position:fixed;right:16px;bottom:16px;z-index:9999;width:230px;',
+            '#' + WIDGET_ID + '{position:fixed;right:16px;bottom:16px;z-index:9999;width:248px;',
             'background:#2f3947;color:#e6e9ee;border:1px solid #1d2530;border-radius:6px;',
             'box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:12px;line-height:1.45;}',
             '#' + WIDGET_ID + ' .sgpv-w__head{display:flex;align-items:center;justify-content:space-between;',
@@ -789,9 +798,16 @@
             '#' + WIDGET_ID + ' .sgpv-w__btn:hover{filter:brightness(1.12);}',
             '#' + WIDGET_ID + ' .sgpv-w__btn--on{background:#3d8b37;border-color:#3d8b37;}',
             '#' + WIDGET_ID + ' .sgpv-w__btn--ghost{background:transparent;color:#9fb4e8;}',
-            '#' + WIDGET_ID + ' .sgpv-w__check{display:flex;align-items:center;gap:6px;',
-            'margin-top:10px;color:#b8c1cd;cursor:pointer;}',
-            '#' + WIDGET_ID + ' .sgpv-w__check input{margin:0;cursor:pointer;}',
+            // SteamGifts trae sus propios estilos de formulario, y con solo
+            // display:flex el <span> se comprimía hasta partir la etiqueta en
+            // tres líneas con la casilla suelta a un lado. Cada pieza lleva
+            // aquí su tamaño y su comportamiento de flex, sin heredar nada.
+            '#' + WIDGET_ID + ' .sgpv-w__check{display:flex;align-items:center;gap:7px;',
+            'margin-top:10px;color:#b8c1cd;cursor:pointer;user-select:none;',
+            'line-height:1.3;float:none;position:static;width:auto;}',
+            '#' + WIDGET_ID + ' .sgpv-w__check input{flex:0 0 auto;width:13px;height:13px;',
+            'margin:0;padding:0;cursor:pointer;accent-color:#4b72d4;float:none;position:static;}',
+            '#' + WIDGET_ID + ' .sgpv-w__check span{flex:1 1 auto;min-width:0;}',
             '#' + WIDGET_ID + ' .sgpv-w__lang{display:flex;align-items:center;justify-content:space-between;',
             'gap:6px;margin-top:10px;color:#9aa4b2;}',
             '#' + WIDGET_ID + ' .sgpv-w__lang select{font:inherit;padding:2px 4px;border-radius:3px;',
@@ -867,7 +883,13 @@
 
     function run() {
         const list = collect();
-        if (!list.length) return false;
+        if (!list.length) {
+            // El listado puede vaciarse en marcha (una búsqueda sin
+            // resultados, por ejemplo): el widget se va con él.
+            const stale = document.getElementById(WIDGET_ID);
+            if (stale) stale.remove();
+            return false;
+        }
         injectCss();
         rankAll(list);
         list.forEach(paint);
