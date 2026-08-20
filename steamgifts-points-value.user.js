@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamGifts Points Value (odds & cost per giveaway)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.4
+// @version      1.2.0
 // @description  Works out the real odds of every open SteamGifts giveaway — copies against entries, not the entry count alone — and what those odds cost you in points, so you can see where your balance is worth spending. Adds odds and value per point to each row and to the giveaway page, sorts the listing by value, and shows a widget with your balance, your level and how far the next one is. Filtering by level, library or already-entered is left to the site's own settings, which do it server-side.
 // @match        https://www.steamgifts.com/*
 // @author       g31w0fw0rld
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.1.4';
+    const SCRIPT_VERSION = '1.2.0';
 
     // ------------------------------------------------------------------
     // i18n
@@ -115,7 +115,7 @@
                 'Leave 1 on All and 7 to taste. Without those, half the listing can be giveaways you cannot enter, and they drag the colour ranking with them.',
                 'The one view that does cut anything is "show matches only", and it cuts by your own keyword list, which the site knows nothing about. Nothing is removed: the rows stay on the page with their badges and their place in the order, and unticking it brings them all back.',
                 'And when anything matches, a second panel appears on the other side listing those giveaways. Click one to jump to it: with twenty pages loaded, that is the difference between finding your three and scrolling for them.',
-                'And a checkbox turns those keywords into alerts: every 15 minutes it reads the whole giveaway listing, page by page, and flags every giveaway matching them in the matches panel —with a bell, a count and a beep— on whatever page of SteamGifts you have open —the forum included, which is where you would not notice on your own—. Having read those pages, it leaves them loaded in the listing too when you are on the front page with nothing filtered, which is the same thing the load button does, for free. It beeps every 5 seconds until you mark it as seen —right there in the panel—, and what you marked never alerts again. It runs that pass on every page you open too, not only every 15 minutes. Ticking or unticking it clears the alerts and checks straight away. There are no desktop notifications on purpose: the alert lives in this tab, and asking for notification permission is not something you can undo from here.',
+                'And a checkbox turns those keywords into alerts: every 15 minutes it reads the whole giveaway listing, page by page, and flags every giveaway matching them in the matches panel —with a bell, a count and a beep— on whatever page of SteamGifts you have open —the forum included, which is where you would not notice on your own—. Having read those pages, it leaves them loaded in the listing too when you are on the front page with nothing filtered, which is the same thing the load button does, for free. It beeps every 5 seconds until you mark it as seen —right there in the panel—, and what you marked never alerts again. It runs that whole pass on every page you open too, not only every 15 minutes, and those do not reset the clock: the loop counts from its own last pass, so it fires on time however much you reload. Ticking or unticking it clears the alerts and checks straight away. There are no desktop notifications on purpose: the alert lives in this tab, and asking for notification permission is not something you can undo from here.',
                 '▸ Privacy',
                 'Nothing is sent to the author or to any third party. Everything you see on a page is arithmetic on what that page had already printed.',
                 '⚠ Two things go to the network, and both only to this same site, with your session, exactly as clicking a link on it would: "Load every page", when you press it, asks for the pages after this one; and the alerts, if you tick them, read the whole listing every 15 minutes —one request per page, 0.7s apart, and only from one tab—. Nothing else leaves your browser, and nothing at all is sent to the author.',
@@ -151,7 +151,7 @@
             kwOnlyEmpty: 'matches only: none on this page',
             kwOnlyNeeds: 'Add a keyword first: with none, there is nothing to match and this would empty the listing.',
             alerts: 'Alert me about new ones',
-            alertsTip: 'Every {mins} minutes it reads the whole giveaway listing —page by page, {delay}s apart, up to {max} pages— and beeps for every giveaway matching your keywords, whatever page of SteamGifts you have open. Since it has read those pages anyway, it also leaves them loaded in the listing when you are on the front page with no search or filter, so you get the whole listing without pressing anything. It also does that whole pass every time you open or navigate to a page of the site, so a listing you have just landed on arrives already complete and already checked; the 15 minutes only govern the waiting between passes. It beeps every {beep} seconds until you mark it as seen, and what you marked never alerts again. Ticking or unticking this clears the alerts and checks straight away, so turning it on tells you what is there right now. Only one tab does the asking. Nothing is sent anywhere else, and there are no desktop notifications: the alert lives in this tab.',
+            alertsTip: 'Every {mins} minutes it reads the whole giveaway listing —page by page, {delay}s apart, up to {max} pages— and beeps for every giveaway matching your keywords, whatever page of SteamGifts you have open. Since it has read those pages anyway, it also leaves them loaded in the listing when you are on the front page with no search or filter, so you get the whole listing without pressing anything. It also does that whole pass every time you open or navigate to a page of the site —the whole listing, whenever the last one was— so a listing you have just landed on arrives already complete and already checked. Those do not push the clock back: the {mins} minutes are the wait of the loop itself, counted from the last pass of the loop itself, so it fires on time however much you reload. It beeps every {beep} seconds until you mark it as seen, and what you marked never alerts again. Ticking or unticking this clears the alerts and checks straight away, so turning it on tells you what is there right now. Only one tab does the asking. Nothing is sent anywhere else, and there are no desktop notifications: the alert lives in this tab.',
             alertsNeeds: 'Add a keyword first: with none there is nothing to alert about.',
             alertsSeenOne: 'Mark as seen — it will not alert again',
             alertsCount: '{n} of these turned up since you last looked',
@@ -236,7 +236,7 @@
                 'Deja el 1 en All y el 7 a tu gusto. Sin eso, media página pueden ser sorteos en los que no puedes entrar, y arrastran con ellos el reparto de colores.',
                 'La única vista que sí recorta es «mostrar solo coincidencias», y recorta por tu lista de palabras, que el sitio no conoce. No quita nada: las filas siguen en la página, con su badge y su sitio en el orden, y al desmarcarla vuelven todas.',
                 'Y cuando algo casa, aparece al otro lado un segundo panel que las lista. Pulsa una para ir a ella: con veinte páginas cargadas, esa es la diferencia entre encontrar tus tres y bajar buscándolas.',
-                'Y una casilla convierte esas palabras en avisos: cada 15 minutos lee el listado de sorteos entero, página por página, y marca cada uno que casa en el panel de coincidencias —con campana, cuenta y pitido— en cualquier página de SteamGifts que tengas abierta —el foro incluido, que es justo donde no te enterarías por tu cuenta—. Y ya que ha leído esas páginas, las deja cargadas en el listado si estás en la portada sin nada filtrado, que es lo mismo que hace el botón de cargar, gratis. Pita cada 5 segundos hasta que lo marques como visto —ahí mismo, en el panel—, y lo marcado no vuelve a avisar. Esa pasada la hace también en cada página que abres, no solo cada 15 minutos. Marcarla o desmarcarla borra los avisos y revisa al momento. No hay notificaciones del escritorio a propósito: el aviso vive en esta pestaña, y pedir permiso de notificaciones no es algo que puedas deshacer desde aquí.',
+                'Y una casilla convierte esas palabras en avisos: cada 15 minutos lee el listado de sorteos entero, página por página, y marca cada uno que casa en el panel de coincidencias —con campana, cuenta y pitido— en cualquier página de SteamGifts que tengas abierta —el foro incluido, que es justo donde no te enterarías por tu cuenta—. Y ya que ha leído esas páginas, las deja cargadas en el listado si estás en la portada sin nada filtrado, que es lo mismo que hace el botón de cargar, gratis. Pita cada 5 segundos hasta que lo marques como visto —ahí mismo, en el panel—, y lo marcado no vuelve a avisar. Esa pasada —el listado entero— la hace también en cada página que abres, no solo cada 15 minutos, y esas no reinician el reloj: el bucle cuenta desde su propia última pasada, así que llega a su hora aunque recargues sin parar. Marcarla o desmarcarla borra los avisos y revisa al momento. No hay notificaciones del escritorio a propósito: el aviso vive en esta pestaña, y pedir permiso de notificaciones no es algo que puedas deshacer desde aquí.',
                 '▸ Privacidad',
                 'No se envía nada al autor ni a ningún tercero. Todo lo que ves en una página son cuentas sobre lo que esa página ya había impreso.',
                 '⚠ Dos cosas salen a la red, y las dos solo a este mismo sitio, con tu sesión, igual que si pulsaras un enlace suyo: «Cargar todas las páginas», cuando la pulsas, pide las páginas siguientes a esta; y los avisos, si los marcas, leen el listado entero cada 15 minutos —una petición por página, cada 0,7 s, y solo desde una pestaña—. Nada más sale de tu navegador, y al autor no se le manda nada de nada.',
@@ -272,7 +272,7 @@
             kwOnlyEmpty: 'solo coincidencias: ninguna en esta página',
             kwOnlyNeeds: 'Añade antes una palabra: sin ninguna no hay nada que casar y esto vaciaría el listado.',
             alerts: 'Avisarme de los nuevos',
-            alertsTip: 'Cada {mins} minutos lee el listado de sorteos entero —página por página, cada {delay} s, hasta {max} páginas— y pita por cada sorteo que casa con tus palabras clave, en cualquier página de SteamGifts que tengas abierta. Y como esas páginas ya las ha leído, las deja cargadas en el listado cuando estás en la portada sin búsqueda ni filtros, así que tienes el listado entero sin pulsar nada. Esa pasada la hace además cada vez que abres o navegas a una página del sitio, así que un listado al que acabas de llegar te llega ya completo y ya revisado; los 15 minutos gobiernan solo la espera entre pasadas. Pita cada {beep} segundos hasta que lo marques como visto, y lo marcado no vuelve a avisar nunca. Marcarla o desmarcarla borra los avisos y revisa al momento, así que encenderla te dice qué hay ahora mismo. Solo una pestaña pregunta. No se manda nada a ninguna otra parte, y no hay notificaciones del escritorio: el aviso vive en esta pestaña.',
+            alertsTip: 'Cada {mins} minutos lee el listado de sorteos entero —página por página, cada {delay} s, hasta {max} páginas— y pita por cada sorteo que casa con tus palabras clave, en cualquier página de SteamGifts que tengas abierta. Y como esas páginas ya las ha leído, las deja cargadas en el listado cuando estás en la portada sin búsqueda ni filtros, así que tienes el listado entero sin pulsar nada. Esa pasada la hace además cada vez que abres o navegas a una página del sitio —el listado entero, sin mirar cuándo fue la anterior—, así que un listado al que acabas de llegar te llega ya completo y ya revisado. Y no retrasan el reloj: los {mins} minutos son la espera del bucle, contados desde su propia última pasada, así que llega a su hora aunque recargues sin parar. Pita cada {beep} segundos hasta que lo marques como visto, y lo marcado no vuelve a avisar nunca. Marcarla o desmarcarla borra los avisos y revisa al momento, así que encenderla te dice qué hay ahora mismo. Solo una pestaña pregunta. No se manda nada a ninguna otra parte, y no hay notificaciones del escritorio: el aviso vive en esta pestaña.',
             alertsNeeds: 'Añade antes una palabra: sin ninguna no hay de qué avisar.',
             alertsSeenOne: 'Marcar como visto — no volverá a avisar',
             alertsCount: '{n} de estos han aparecido desde la última vez',
@@ -371,6 +371,13 @@
     const ALERT_KEY = 'sgpv-alert-list';
     const ALERT_ON_KEY = 'sgpv-alerts-on';
     const ALERT_LAST_KEY = 'sgpv-alerts-last';
+    // Dos relojes y no uno, porque no miden lo mismo: `last` es la última
+    // pasada de cualquier clase y es lo que enseña el panel; `cycle` es el que
+    // gobierna el cuarto de hora, y solo lo mueve el propio bucle. Con una sola
+    // marca —como estaba— cada carga de página adelantaba el cuarto de hora, así
+    // que navegando por el sitio el bucle no llegaba a disparar nunca: cada
+    // navegación le devolvía el reloj a cero.
+    const ALERT_CYCLE_KEY = 'sgpv-alerts-cycle';
     const ALERT_LOCK_KEY = 'sgpv-alerts-lock';
     // Cada cuarto de hora, y el reloj se comprueba cada minuto en vez de
     // programar un timer de 15 min: una pestaña dormida no dispara timers
@@ -1077,6 +1084,9 @@
     // había que esperar al siguiente cuarto de hora; ahora se apunta y se
     // atiende en cuanto la que está corriendo acaba.
     let rescanWanted = false;
+    // Y de quién era la que se apuntó, porque de eso depende que la pasada
+    // reencolada mueva el reloj del cuarto de hora o lo deje quieto.
+    let rescanFromCycle = false;
 
     // Cada pasada recorre el listado completo y avisa de todo lo que casa con
     // tus palabras y no estuviera ya en la lista. Ese "ya estaba" es lo único
@@ -1095,8 +1105,8 @@
     // puede caer en cualquier página y pararse pronto se lo salta. Cuesta una
     // petición por página cada cuarto de hora, y eso está dicho en el aviso de
     // la casilla, en el modal y en el README.
-    async function scanForAlerts() {
-        if (scanning) { rescanWanted = true; return; }
+    async function scanForAlerts(fromCycle) {
+        if (scanning) { rescanWanted = true; if (fromCycle) rescanFromCycle = true; return; }
         scanning = true;
         scanFailed = false;
         run();
@@ -1165,6 +1175,12 @@
             // La hora se apunta también cuando falla: si no, un endpoint roto se
             // reintentaría cada minuto en vez de cada cuarto de hora.
             store(ALERT_LAST_KEY, String(Date.now()));
+            // Pero el reloj del cuarto de hora SOLO lo mueve el bucle. Una
+            // pasada por cargar la página o por el ⟳ no lo adelanta: si lo
+            // adelantara, ir pinchando enlaces por el sitio dejaría al bucle
+            // permanentemente a quince minutos de disparar. (La casilla sí lo
+            // reinicia, pero al marcarla y no aquí: es borrón y cuenta nueva.)
+            if (fromCycle) store(ALERT_CYCLE_KEY, String(Date.now()));
 
             // Las filas inyectadas cuentan igual que las del botón: comparten
             // el mismo estado, así que la paginación del sitio se pliega por el
@@ -1187,7 +1203,9 @@
             run();
             if (rescanWanted) {
                 rescanWanted = false;
-                maybeScanForAlerts(true);
+                const wasCycle = rescanFromCycle;
+                rescanFromCycle = false;
+                maybeScanForAlerts(true, wasCycle);
             }
         }
     }
@@ -1202,17 +1220,25 @@
     // que queda: sin él, ir pinchando enlaces por el sitio lanzaría un
     // recorrido completo por cada navegación. Con él, mientras haya uno en
     // vuelo —suyo o de otra pestaña— la siguiente carga no pide nada.
-    function maybeScanForAlerts(force) {
+    //
+    // `fromCycle` dice quién llama, y es lo único que puede mover el reloj del
+    // cuarto de hora. Las tres cosas que fuerzan recorren el listado entero sin
+    // mirar la marca de tiempo Y sin tocarla, así que el bucle sigue contando
+    // desde su propia última pasada y llega a su hora aunque entre medias hayas
+    // recargado la página veinte veces. Al contrario que antes, cuando cada
+    // recarga le devolvía el reloj a cero y el bucle solo disparaba si dejabas
+    // la pestaña quieta un cuarto de hora entero.
+    function maybeScanForAlerts(force, fromCycle) {
         if (!alertsOn()) return;
         // Con una pasada en marcha, la petición NO se tira: se apunta y se
         // atiende al acabar. Aquí estaba el escape que la perdía.
-        if (scanning) { rescanWanted = true; return; }
+        if (scanning) { rescanWanted = true; if (fromCycle) rescanFromCycle = true; return; }
         if (!force) {
-            const last = parseInt(recall(ALERT_LAST_KEY), 10) || 0;
+            const last = parseInt(recall(ALERT_CYCLE_KEY), 10) || 0;
             if (Date.now() - last < ALERT_EVERY_MS) return;
         }
         if (!takeAlertLock()) return;
-        scanForAlerts();
+        scanForAlerts(fromCycle);
     }
 
     // ------------------------------------------------------------------
@@ -1272,6 +1298,11 @@
             // es lo que se espera de empezar de cero.
             store(ALERT_KEY, null);
             store(ALERT_LAST_KEY, null);
+            // El interruptor es lo ÚNICO que reinicia el reloj del bucle sin
+            // ser el bucle, y por eso mismo: encenderla revisa ahora, así que
+            // la siguiente pasada del reloj toca un cuarto de hora después de
+            // ahora, no un cuarto de hora después de lo que hubiera antes.
+            store(ALERT_CYCLE_KEY, String(Date.now()));
             run();
             // Y se revisa YA, sin esperar el cuarto de hora: quien acaba de
             // marcarla quiere saber qué hay ahora, no dentro de quince minutos.
@@ -2621,7 +2652,13 @@
         // la revisión de la CARGA fuerza: acabas de llegar a esta página, así
         // que se llena el listado y se comprueba si apareció algo, sin importar
         // cuándo fue la última pasada.
-        setInterval(() => maybeScanForAlerts(), ALERT_TICK_MS);
+        //
+        // El reloj del bucle se siembra si no hubiera marca —primera vez con la
+        // casilla puesta, o recién actualizado el script—: sin sembrarla vería
+        // "hace una eternidad" en su primer tic y recorrería el listado otra vez
+        // un minuto después de la pasada de la carga.
+        if (alertsOn() && !recall(ALERT_CYCLE_KEY)) store(ALERT_CYCLE_KEY, String(Date.now()));
+        setInterval(() => maybeScanForAlerts(false, true), ALERT_TICK_MS);
         maybeScanForAlerts(true);
         if (!isGiveawayPage()) return;
         if (isSinglePage()) return watchSingle();
