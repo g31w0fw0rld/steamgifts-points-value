@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamGifts Points Value (odds & cost per giveaway)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.1
+// @version      1.1.2
 // @description  Works out the real odds of every open SteamGifts giveaway — copies against entries, not the entry count alone — and what those odds cost you in points, so you can see where your balance is worth spending. Adds odds and value per point to each row and to the giveaway page, sorts the listing by value, and shows a widget with your balance, your level and how far the next one is. Filtering by level, library or already-entered is left to the site's own settings, which do it server-side.
 // @match        https://www.steamgifts.com/*
 // @author       g31w0fw0rld
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.1.1';
+    const SCRIPT_VERSION = '1.1.2';
 
     // ------------------------------------------------------------------
     // i18n
@@ -1970,6 +1970,33 @@
         return true;
     }
 
+    // Un solo temporizador por observador: una entrada en un sorteo dispara
+    // varias mutaciones seguidas —el saldo, el botón de la fila, a veces la
+    // fila entera— y sin esto se recalcularía la página una vez por cada una.
+    function debounced(fn, ms) {
+        let pending = null;
+        return () => { clearTimeout(pending); pending = setTimeout(fn, ms); };
+    }
+
+    // EL SALDO NO VIVE EN EL LISTADO, vive en la cabecera del sitio. Al entrar
+    // o salir de un sorteo con el botón rápido de una fila, SteamGifts reescribe
+    // `.nav__points` por AJAX; el listado, en cambio, puede no cambiar en
+    // absoluto. Así que el observador del listado —childList del contenedor de
+    // filas— no ve nada de eso, y el widget se quedaba con el saldo de la carga
+    // de la página: la cabecera decía 191P y él seguía diciendo 199P, con su
+    // línea de "a tu alcance" calculada sobre el número viejo.
+    //
+    // Se observa el PADRE y no el propio nodo del saldo: así da igual que el
+    // sitio le reescriba el texto o que reemplace el elemento entero, y de paso
+    // entra el nivel, que vive en el span de al lado y también puede cambiar.
+    function watchPoints(schedule) {
+        const node = document.querySelector(SEL.navPoints);
+        if (!node) return;
+        new MutationObserver(schedule).observe(node.parentElement || node, {
+            childList: true, subtree: true, characterData: true,
+        });
+    }
+
     function boot() {
         run();
         if (!isGiveawayPage()) return;
@@ -1979,11 +2006,9 @@
         // vez por cada nodo insertado.
         const host = document.querySelector(SEL.row);
         const target = host && host.parentElement ? host.parentElement : document.body;
-        let pending = null;
-        new MutationObserver(() => {
-            clearTimeout(pending);
-            pending = setTimeout(run, 200);
-        }).observe(target, { childList: true });
+        const schedule = debounced(run, 200);
+        new MutationObserver(schedule).observe(target, { childList: true });
+        watchPoints(schedule);
     }
 
     // En la ficha no hay filas que vigilar, y lo que cambia no es la llegada
@@ -1999,11 +2024,7 @@
             (document.querySelector(SEL.gaEnter) || {}).parentElement,
         ].filter(Boolean);
         if (!targets.length) return;
-        let pending = null;
-        const obs = new MutationObserver(() => {
-            clearTimeout(pending);
-            pending = setTimeout(run, 200);
-        });
+        const obs = new MutationObserver(debounced(run, 200));
         targets.forEach(node => obs.observe(node, {
             childList: true, subtree: true, characterData: true,
             attributes: true, attributeFilter: ['class'],
