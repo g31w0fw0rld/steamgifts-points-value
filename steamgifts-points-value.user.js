@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamGifts Points Value (odds & cost per giveaway)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.3
+// @version      1.1.4
 // @description  Works out the real odds of every open SteamGifts giveaway — copies against entries, not the entry count alone — and what those odds cost you in points, so you can see where your balance is worth spending. Adds odds and value per point to each row and to the giveaway page, sorts the listing by value, and shows a widget with your balance, your level and how far the next one is. Filtering by level, library or already-entered is left to the site's own settings, which do it server-side.
 // @match        https://www.steamgifts.com/*
 // @author       g31w0fw0rld
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.1.3';
+    const SCRIPT_VERSION = '1.1.4';
 
     // ------------------------------------------------------------------
     // i18n
@@ -55,6 +55,7 @@
             title: 'Points Value',
             capped: 'at the cap',
             cappedTip: 'You are at the 400P cap: every point handed out from now on is lost until you spend some.',
+            pointsTip: 'Your balance, read from the site header. SteamGifts stops at 400P: once you are there, every point it would hand you is lost until you spend.',
             level: 'Level {n}',
             toNext: '${v} to Level {n}',
             maxLevel: 'top level',
@@ -175,6 +176,7 @@
             title: 'Valor por punto',
             capped: 'al tope',
             cappedTip: 'Estás en el tope de 400P: cada punto que se reparta a partir de ahora se pierde hasta que gastes.',
+            pointsTip: 'Tu saldo, leído de la cabecera del sitio. SteamGifts se detiene en 400P: al llegar ahí, cada punto que te tocaría se pierde hasta que gastes.',
             level: 'Nivel {n}',
             toNext: '{v} $ para el nivel {n}',
             maxLevel: 'nivel máximo',
@@ -1396,10 +1398,11 @@
             const atCap = acc.points >= POINTS_CAP;
             const amount = el('div', 'sgpv-w__amount' + (atCap ? ' sgpv-w__amount--cap' : ''),
                 nf.format(acc.points) + 'P');
-            if (atCap) {
-                amount.title = t('cappedTip');
-                amount.appendChild(el('span', 'sgpv-w__cap', ' ' + t('capped')));
-            }
+            // El tope se explica SIEMPRE, no solo estando en él: el dato sirve
+            // ANTES, que es cuando aún se puede gastar para no perder nada. Al
+            // llegar, el aviso cambia al que habla en presente.
+            amount.title = atCap ? t('cappedTip') : t('pointsTip');
+            if (atCap) amount.appendChild(el('span', 'sgpv-w__cap', ' ' + t('capped')));
             body.appendChild(amount);
             const lvl = levelLine(acc);
             if (lvl) {
@@ -2043,6 +2046,7 @@
     let tipPending = null;
     let tipTimer = null;
     let tipBound = false;
+    let tipPoint = null;
 
     function ensureTipNode() {
         if (tipEl && tipEl.isConnected) return tipEl;
@@ -2083,8 +2087,19 @@
         tipEl.style.top = Math.max(TIP_MARGIN, Math.min(top, vh - box.height - TIP_MARGIN)) + 'px';
     }
 
-    function showTip(anchor) {
-        if (!anchor.isConnected) return;  // el widget se repintó durante el retardo
+    // El widget se rehace entero en cada pasada, así que el control señalado
+    // puede haber desaparecido mientras corría el retardo. Eso no es motivo
+    // para tragarse el aviso: lo que cuenta es qué hay AHORA bajo el ratón, y
+    // el control equivalente está en el mismo punto de la pantalla.
+    function liveAnchor(node) {
+        if (node.isConnected) return node;
+        if (!tipPoint) return null;
+        return tipTargetFrom(document.elementFromPoint(tipPoint.x, tipPoint.y));
+    }
+
+    function showTip(node) {
+        const anchor = liveAnchor(node);
+        if (!anchor) return;
         const text = anchor.getAttribute('title') || anchor.getAttribute(TIP_STASH);
         if (!text) return;
         ensureTipNode();
@@ -2131,7 +2146,10 @@
         // mouseover salta en CADA elemento al que se entra, también en los que
         // no llevan aviso: por eso cierra la caja el simple hecho de salir del
         // control, sin necesidad de un mouseout aparte.
-        document.addEventListener('mouseover', ev => tipEnter(tipTargetFrom(ev.target)));
+        document.addEventListener('mouseover', ev => {
+            tipPoint = { x: ev.clientX, y: ev.clientY };
+            tipEnter(tipTargetFrom(ev.target));
+        });
         document.addEventListener('mouseleave', hideTip);
         // Por teclado sale sin retardo: llegar tabulando ya es intención.
         document.addEventListener('focusin', ev => {
@@ -2253,8 +2271,8 @@
             '#' + WIDGET_ID + '.sgpv-w--min .sgpv-w__body{display:none;}',
             '#' + WIDGET_ID + ' .sgpv-w__head{flex:0 0 auto;}',
             '#' + WIDGET_ID + ' .sgpv-w__body{padding:10px;overflow-y:auto;min-height:0;}',
-            '#' + WIDGET_ID + ' .sgpv-w__amount{font-size:24px;font-weight:700;color:#fff;}',
-            '#' + WIDGET_ID + ' .sgpv-w__amount--cap{color:#ffcf66;cursor:help;}',
+            '#' + WIDGET_ID + ' .sgpv-w__amount{font-size:24px;font-weight:700;color:#fff;cursor:help;}',
+            '#' + WIDGET_ID + ' .sgpv-w__amount--cap{color:#ffcf66;}',
             '#' + WIDGET_ID + ' .sgpv-w__cap{font-size:11px;font-weight:600;}',
             '#' + WIDGET_ID + ' .sgpv-w__line{color:#b8c1cd;margin-top:2px;}',
             '#' + WIDGET_ID + ' .sgpv-w__line--best{color:#8bd67f;}',
@@ -2542,6 +2560,37 @@
         return () => { clearTimeout(pending); pending = setTimeout(fn, ms); };
     }
 
+    // EL REPINTADO SE VE A SÍ MISMO, así que hay que descartar sus propias
+    // mutaciones. Con el orden por valor puesto, cada pasada reparte las filas
+    // con marcadores DENTRO del mismo contenedor que vigila el observador (ver
+    // `reflow`), o sea que deja mutaciones de childList que programan la pasada
+    // siguiente. Basta un cambio del sitio para arrancarlo —entrar a un sorteo
+    // con el botón rápido reemplaza la fila— o pulsar el propio botón de
+    // ordenar, y a partir de ahí el listado se recalcula cada 200 ms para
+    // siempre.
+    //
+    // El síntoma por el que se encontró no fue el listado, fue el tooltip
+    // propio: el widget se rehace entero en cada pasada, y con un repintado
+    // cada 200 ms el control bajo el ratón ya no existía cuando vencía el
+    // retardo de 250 ms, así que `showTip` se salía por `!anchor.isConnected` y
+    // el aviso no aparecía NUNCA.
+    //
+    // `takeRecords()` vacía la cola del observador antes de que se entregue
+    // —los registros se encolan al mutar y se reparten en una microtarea, o sea
+    // después de esta función—, así que se tira lo que acaba de hacer el script
+    // y sigue llegando lo que venga después.
+    const OBSERVERS = [];
+
+    function watchNode(target, opts, schedule) {
+        const obs = new MutationObserver(schedule);
+        obs.observe(target, opts);
+        OBSERVERS.push(obs);
+    }
+
+    function repaint() {
+        try { run(); } finally { OBSERVERS.forEach(o => o.takeRecords()); }
+    }
+
     // EL SALDO NO VIVE EN EL LISTADO, vive en la cabecera del sitio. Al entrar
     // o salir de un sorteo con el botón rápido de una fila, SteamGifts reescribe
     // `.nav__points` por AJAX; el listado, en cambio, puede no cambiar en
@@ -2556,9 +2605,9 @@
     function watchPoints(schedule) {
         const node = document.querySelector(SEL.navPoints);
         if (!node) return;
-        new MutationObserver(schedule).observe(node.parentElement || node, {
+        watchNode(node.parentElement || node, {
             childList: true, subtree: true, characterData: true,
-        });
+        }, schedule);
     }
 
     function boot() {
@@ -2581,8 +2630,8 @@
         // vez por cada nodo insertado.
         const host = document.querySelector(SEL.row);
         const target = host && host.parentElement ? host.parentElement : document.body;
-        const schedule = debounced(run, 200);
-        new MutationObserver(schedule).observe(target, { childList: true });
+        const schedule = debounced(repaint, 200);
+        watchNode(target, { childList: true }, schedule);
         watchPoints(schedule);
     }
 
@@ -2599,11 +2648,11 @@
             (document.querySelector(SEL.gaEnter) || {}).parentElement,
         ].filter(Boolean);
         if (!targets.length) return;
-        const obs = new MutationObserver(debounced(run, 200));
-        targets.forEach(node => obs.observe(node, {
+        const schedule = debounced(repaint, 200);
+        targets.forEach(node => watchNode(node, {
             childList: true, subtree: true, characterData: true,
             attributes: true, attributeFilter: ['class'],
-        }));
+        }, schedule));
     }
 
     if (document.readyState === 'loading') {
