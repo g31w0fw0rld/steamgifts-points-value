@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamGifts Points Value (odds & cost per giveaway)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.2
+// @version      1.1.3
 // @description  Works out the real odds of every open SteamGifts giveaway — copies against entries, not the entry count alone — and what those odds cost you in points, so you can see where your balance is worth spending. Adds odds and value per point to each row and to the giveaway page, sorts the listing by value, and shows a widget with your balance, your level and how far the next one is. Filtering by level, library or already-entered is left to the site's own settings, which do it server-side.
 // @match        https://www.steamgifts.com/*
 // @author       g31w0fw0rld
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.1.2';
+    const SCRIPT_VERSION = '1.1.3';
 
     // ------------------------------------------------------------------
     // i18n
@@ -114,10 +114,11 @@
                 'Leave 1 on All and 7 to taste. Without those, half the listing can be giveaways you cannot enter, and they drag the colour ranking with them.',
                 'The one view that does cut anything is "show matches only", and it cuts by your own keyword list, which the site knows nothing about. Nothing is removed: the rows stay on the page with their badges and their place in the order, and unticking it brings them all back.',
                 'And when anything matches, a second panel appears on the other side listing those giveaways. Click one to jump to it: with twenty pages loaded, that is the difference between finding your three and scrolling for them.',
+                'And a checkbox turns those keywords into alerts: every 15 minutes it reads the whole giveaway listing, page by page, and flags every giveaway matching them in the matches panel —with a bell, a count and a beep— on whatever page of SteamGifts you have open —the forum included, which is where you would not notice on your own—. Having read those pages, it leaves them loaded in the listing too when you are on the front page with nothing filtered, which is the same thing the load button does, for free. It beeps every 5 seconds until you mark it as seen —right there in the panel—, and what you marked never alerts again. It runs that pass on every page you open too, not only every 15 minutes. Ticking or unticking it clears the alerts and checks straight away. There are no desktop notifications on purpose: the alert lives in this tab, and asking for notification permission is not something you can undo from here.',
                 '▸ Privacy',
                 'Nothing is sent to the author or to any third party. Everything you see on a page is arithmetic on what that page had already printed.',
-                '⚠ One thing does go to the network, and only when you press it: "Load every page" asks this same site for the pages after this one, with your session, exactly as clicking a page number in its own pagination would. Nothing else leaves your browser.',
-                'What is stored, on your own machine: your keywords, the language you picked, and how you left the page — sorted by value or not, matches only or not, empty gaps folded or not, which side the widget sits on, and whether the widget and the matches panel are folded.',
+                '⚠ Two things go to the network, and both only to this same site, with your session, exactly as clicking a link on it would: "Load every page", when you press it, asks for the pages after this one; and the alerts, if you tick them, read the whole listing every 15 minutes —one request per page, 0.7s apart, and only from one tab—. Nothing else leaves your browser, and nothing at all is sent to the author.',
+                'What is stored, on your own machine: your keywords, the language you picked, and how you left the page — sorted by value or not, matches only or not, empty gaps folded or not, which side the widget sits on, and whether the widget and the matches panel are folded. With the alerts on it also keeps the list of giveaways it has alerted you about and which ones you marked as seen — that list is what stops the same game from alerting twice.',
             ],
             tipOdds: 'Real odds: {copies} copies shared between {entries} entries.',
             tipOddsOne: 'Real odds: a single copy shared between {entries} entries.',
@@ -148,8 +149,22 @@
             kwOnlyTip: 'Hides the rows that do not match your keywords, so a long list stops painting half the page amber. It hides nothing the site chose to show you for a reason: this is your own keyword list, which SteamGifts knows nothing about, and it is a view — untick it and everything is back. Featured stay put, and so do the site\u2019s own blocks.',
             kwOnlyEmpty: 'matches only: none on this page',
             kwOnlyNeeds: 'Add a keyword first: with none, there is nothing to match and this would empty the listing.',
+            alerts: 'Alert me about new ones',
+            alertsTip: 'Every {mins} minutes it reads the whole giveaway listing —page by page, {delay}s apart, up to {max} pages— and beeps for every giveaway matching your keywords, whatever page of SteamGifts you have open. Since it has read those pages anyway, it also leaves them loaded in the listing when you are on the front page with no search or filter, so you get the whole listing without pressing anything. It also does that whole pass every time you open or navigate to a page of the site, so a listing you have just landed on arrives already complete and already checked; the 15 minutes only govern the waiting between passes. It beeps every {beep} seconds until you mark it as seen, and what you marked never alerts again. Ticking or unticking this clears the alerts and checks straight away, so turning it on tells you what is there right now. Only one tab does the asking. Nothing is sent anywhere else, and there are no desktop notifications: the alert lives in this tab.',
+            alertsNeeds: 'Add a keyword first: with none there is nothing to alert about.',
+            alertsSeenOne: 'Mark as seen — it will not alert again',
+            alertsCount: '{n} of these turned up since you last looked',
+            alertsElsewhere: 'Not on this page, so there is nowhere to jump to. Its odds and value are the ones it had when it was found.',
+            alertsSeenAll: 'Mark all as seen',
+            alertsLast: 'checked at {time}',
+            alertsScanning: 'checking…',
+            alertsFail: 'could not read the giveaway listing',
+            alertsNow: 'Check now, without clearing what is already listed',
+            alertsQuiet: 'nothing new since {time}',
+            alertsFirstClick: 'The beep may need you to click the page once: browsers do not let a tab play sound before you interact with it.',
             matches: 'Your matches',
-            matchesTip: 'Every giveaway on the page whose name matches your keywords, in the order they appear. Click one to jump to it — useful when the listing is twenty pages long and three of them are yours.',
+            matchesTip: 'Every giveaway on the page whose name matches your keywords, in the order they appear. Click one to jump to it — useful when the listing is twenty pages long and three of them are yours. It never opens the giveaway: for that, click its row in the listing as you normally would.',
+            matchesAlertTip: 'Your keyword matches, and the alerts among them. What turned up since you last looked comes first with a 🔔; the eye marks one as seen, the one in the header marks them all, and what you marked never alerts again. Click an entry to jump to its row — it never opens the giveaway, for that click the row itself as you normally would.',
             jumpTip: 'Jump to this giveaway on the page',
         },
         es: {
@@ -219,10 +234,11 @@
                 'Deja el 1 en All y el 7 a tu gusto. Sin eso, media página pueden ser sorteos en los que no puedes entrar, y arrastran con ellos el reparto de colores.',
                 'La única vista que sí recorta es «mostrar solo coincidencias», y recorta por tu lista de palabras, que el sitio no conoce. No quita nada: las filas siguen en la página, con su badge y su sitio en el orden, y al desmarcarla vuelven todas.',
                 'Y cuando algo casa, aparece al otro lado un segundo panel que las lista. Pulsa una para ir a ella: con veinte páginas cargadas, esa es la diferencia entre encontrar tus tres y bajar buscándolas.',
+                'Y una casilla convierte esas palabras en avisos: cada 15 minutos lee el listado de sorteos entero, página por página, y marca cada uno que casa en el panel de coincidencias —con campana, cuenta y pitido— en cualquier página de SteamGifts que tengas abierta —el foro incluido, que es justo donde no te enterarías por tu cuenta—. Y ya que ha leído esas páginas, las deja cargadas en el listado si estás en la portada sin nada filtrado, que es lo mismo que hace el botón de cargar, gratis. Pita cada 5 segundos hasta que lo marques como visto —ahí mismo, en el panel—, y lo marcado no vuelve a avisar. Esa pasada la hace también en cada página que abres, no solo cada 15 minutos. Marcarla o desmarcarla borra los avisos y revisa al momento. No hay notificaciones del escritorio a propósito: el aviso vive en esta pestaña, y pedir permiso de notificaciones no es algo que puedas deshacer desde aquí.',
                 '▸ Privacidad',
                 'No se envía nada al autor ni a ningún tercero. Todo lo que ves en una página son cuentas sobre lo que esa página ya había impreso.',
-                '⚠ Una sola cosa sale a la red, y solo cuando la pulsas: «Cargar todas las páginas» le pide a este mismo sitio las páginas siguientes a esta, con tu sesión, igual que si pulsaras un número en su propia paginación. Nada más sale de tu navegador.',
-                'Lo que se guarda, en tu propia máquina: tus palabras clave, el idioma que elegiste y cómo dejaste la página —ordenada por valor o no, solo coincidencias o no, huecos vacíos plegados o no, de qué lado está el widget, y si el widget y el panel de coincidencias están plegados—.',
+                '⚠ Dos cosas salen a la red, y las dos solo a este mismo sitio, con tu sesión, igual que si pulsaras un enlace suyo: «Cargar todas las páginas», cuando la pulsas, pide las páginas siguientes a esta; y los avisos, si los marcas, leen el listado entero cada 15 minutos —una petición por página, cada 0,7 s, y solo desde una pestaña—. Nada más sale de tu navegador, y al autor no se le manda nada de nada.',
+                'Lo que se guarda, en tu propia máquina: tus palabras clave, el idioma que elegiste y cómo dejaste la página —ordenada por valor o no, solo coincidencias o no, huecos vacíos plegados o no, de qué lado está el widget, y si el widget y el panel de coincidencias están plegados—. Con los avisos puestos guarda además la lista de sorteos de los que te avisó y cuáles marcaste como vistos: esa lista es lo que evita que el mismo juego avise dos veces.',
             ],
             tipOdds: 'Probabilidad real: {copies} copias repartidas entre {entries} entradas.',
             tipOddsOne: 'Probabilidad real: una sola copia repartida entre {entries} entradas.',
@@ -253,8 +269,22 @@
             kwOnlyTip: 'Oculta las filas que no casan con tus palabras clave, para que una lista larga deje de pintar media página de ámbar. No esconde nada que el sitio haya decidido mostrarte por algún motivo: esto es tu lista de palabras, que SteamGifts no conoce, y es una vista —al desmarcarla vuelve todo—. Los destacados se quedan, y los bloques del sitio también.',
             kwOnlyEmpty: 'solo coincidencias: ninguna en esta página',
             kwOnlyNeeds: 'Añade antes una palabra: sin ninguna no hay nada que casar y esto vaciaría el listado.',
+            alerts: 'Avisarme de los nuevos',
+            alertsTip: 'Cada {mins} minutos lee el listado de sorteos entero —página por página, cada {delay} s, hasta {max} páginas— y pita por cada sorteo que casa con tus palabras clave, en cualquier página de SteamGifts que tengas abierta. Y como esas páginas ya las ha leído, las deja cargadas en el listado cuando estás en la portada sin búsqueda ni filtros, así que tienes el listado entero sin pulsar nada. Esa pasada la hace además cada vez que abres o navegas a una página del sitio, así que un listado al que acabas de llegar te llega ya completo y ya revisado; los 15 minutos gobiernan solo la espera entre pasadas. Pita cada {beep} segundos hasta que lo marques como visto, y lo marcado no vuelve a avisar nunca. Marcarla o desmarcarla borra los avisos y revisa al momento, así que encenderla te dice qué hay ahora mismo. Solo una pestaña pregunta. No se manda nada a ninguna otra parte, y no hay notificaciones del escritorio: el aviso vive en esta pestaña.',
+            alertsNeeds: 'Añade antes una palabra: sin ninguna no hay de qué avisar.',
+            alertsSeenOne: 'Marcar como visto — no volverá a avisar',
+            alertsCount: '{n} de estos han aparecido desde la última vez',
+            alertsElsewhere: 'No está en esta página, así que no hay a dónde saltar. Su probabilidad y su valor son los que tenía al encontrarlo.',
+            alertsSeenAll: 'Marcar todos como vistos',
+            alertsLast: 'revisado a las {time}',
+            alertsScanning: 'revisando…',
+            alertsFail: 'no se pudo leer el listado de sorteos',
+            alertsNow: 'Revisar ahora, sin borrar lo que ya está en la lista',
+            alertsQuiet: 'nada nuevo desde las {time}',
+            alertsFirstClick: 'El pitido puede necesitar que pulses una vez en la página: los navegadores no dejan sonar a una pestaña con la que no has interactuado.',
             matches: 'Tus coincidencias',
-            matchesTip: 'Los sorteos de la página cuyo nombre casa con tus palabras clave, en el orden en que aparecen. Pulsa uno para ir a él: sirve cuando el listado son veinte páginas y tres son tuyas.',
+            matchesTip: 'Los sorteos de la página cuyo nombre casa con tus palabras clave, en el orden en que aparecen. Pulsa uno para ir a él: sirve cuando el listado son veinte páginas y tres son tuyas. Nunca abre el sorteo: para eso pulsa su fila en el listado, como harías normalmente.',
+            matchesAlertTip: 'Tus coincidencias, y entre ellas los avisos. Lo que ha aparecido desde la última vez va primero con un 🔔; el ojo marca uno como visto, el de la cabecera marca todos, y lo marcado no vuelve a avisar. Pulsa una entrada para ir a su fila: nunca abre el sorteo, para eso pulsa la fila misma como harías normalmente.',
             jumpTip: 'Ir a este sorteo en la página',
         },
     };
@@ -332,6 +362,35 @@
     const SIDE_KEY = 'sgpv-side';
     const MMIN_KEY = 'sgpv-mmin';
     const ONLY_KEY = 'sgpv-only';
+
+    // Avisos de sorteos nuevos que casan con tus palabras. No tienen panel
+    // propio: viven en el de coincidencias, que es el sitio donde ya se
+    // buscaban los juegos de tu lista.
+    const ALERT_KEY = 'sgpv-alert-list';
+    const ALERT_ON_KEY = 'sgpv-alerts-on';
+    const ALERT_LAST_KEY = 'sgpv-alerts-last';
+    const ALERT_LOCK_KEY = 'sgpv-alerts-lock';
+    // Cada cuarto de hora, y el reloj se comprueba cada minuto en vez de
+    // programar un timer de 15 min: una pestaña dormida no dispara timers
+    // largos con puntualidad, y así el retraso máximo es de un minuto.
+    const ALERT_EVERY_MS = 15 * 60 * 1000;
+    const ALERT_TICK_MS = 60 * 1000;
+    const ALERT_BEEP_MS = 5000;
+    const ALERT_VOLUME = 0.75;
+    // Cada pasada recorre el listado ENTERO, así que el tope es el mismo que el
+    // del botón de cargar a mano: es la misma idea de "todas las páginas".
+    const ALERT_MAX_PAGES = LOAD_MAX_PAGES;
+    // Un sorteo marcado como visto se guarda para no volver a avisar de él, y
+    // eso obliga a que la lista caduque MUY tarde: si una entrada se borrara
+    // mientras su sorteo sigue abierto, volvería a avisar. Sesenta días pasan
+    // de largo de cualquier sorteo real.
+    const ALERT_TTL_MS = 60 * 24 * 60 * 60 * 1000;
+    const ALERT_MAX_ENTRIES = 400;
+    // Solo una pestaña sondea. El dueño refresca su marca mientras trabaja y
+    // se da por muerto pasado el plazo, así que cerrar la pestaña que sondeaba
+    // no deja a las demás calladas para siempre.
+    const ALERT_LOCK_MS = 90 * 1000;
+    const TAB_ID = 'sgpv-' + Math.random().toString(36).slice(2) + '-' + Date.now();
 
     const nf = new Intl.NumberFormat(LANG === 'es' ? 'es' : 'en');
     // Dos decimales fijos: con parseFloat, un 1,40 %/P se imprimía "1,4", y
@@ -809,6 +868,352 @@
     }
 
     // ------------------------------------------------------------------
+    // Avisos de sorteos nuevos
+    // ------------------------------------------------------------------
+    // Lo segundo del script que sale a la red, y como lo primero, solo si lo
+    // pides: detrás de una casilla apagada por defecto. Cada cuarto de hora
+    // pregunta por los sorteos más nuevos y avisa de los que casan con tus
+    // palabras clave, en cualquier página del sitio que tengas abierta.
+    //
+    // NO hay notificaciones del escritorio, y es una decisión, no un olvido:
+    // el aviso vive en esta pestaña —campana, contador en el título y pitido—.
+    // Pedir permiso de notificaciones al cargar es de las pocas cosas que un
+    // userscript hace que el usuario no puede deshacer sin ir a los ajustes
+    // del navegador, y aquí no hace falta para nada. Es la misma conclusión a
+    // la que llegaron los scripts de drops de Kick y Twitch, que las tenían y
+    // las quitaron.
+    //
+    // El pitido: sonido de «logro desbloqueado» de Steam, en base64.
+    //
+    //   ↓↓↓  PEGA EL DATA URI COMPLETO ENTRE LAS COMILLAS  ↓↓↓
+    const ALERT_SOUND = 'data:audio/mpeg;base64,//vgQAAAD/wAS4AAAAmcgAlwAAABCUABLhQAACAAACXCgAAE//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////+0BLEAAHi0AABU//vgQAAACsxlxu5+wADvDMi8z9gAGlWXU13MgDtTsuoruZAHDYkDIbEodCYUBYEBgL/0VwYATGGeggBjXBZZ/mAoAERgOQA4Z00OVGm2Fcn+YAqALsuMAcBwTAzwBzAGA2LwDQ6P8DA4KriwCCA+QMdALgMXIiwMJBBPImLGTDAZRBeAYJQtAYPAfgYhwm/Jxd0AcFgBQCYXOAUAIFoP80oMsDAiAEDA2BkCgJgMFQAgMQQRgHAV/um/cCwDwaACAwKAUBQABRFlitP//w5wXADrAwGAAC4QL6CNx0ij//Ts/8GwWHzDYDLhOmYgONIiAoMWX//7aH39Y7CCFkliPODnl9IoHDQ3Z////0zhlTUDRdZc0O//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8JBsKBQKBMYcIMML/JgAIwAoAcMItA/DGbjAr/MAmABDATgCY0U4k2M9kJjv9Dql2YXoG6mEAgKGAoAsjAM8x7gMrhHueIYToGQAOgGkk2IGM8FXjjFjJhgMSgZgMPoAgMIADAMDIFfk4tzdADDECAMvg2DAiAYHAA/skaMmDd4GBEDYRBkBg6AUBi2DQBgAAz/p+4DAGw9oDAQBACQBBBQiAfJ/+h8LjBcAMeAMBQWQHKCDw/MOP/+nb94XDiCw2AyIOEkwy+NISgILix/////k2OAiBiXRz1DNm5fJwuE45t////6ZRDQO2FxAKmaZVVqTdTklVuL/ISgaADBoQKsENWGkxUFzAxNCopEgSXEHhizbKpijOGojR1NymhseDXDTOxalSCBPlwmOVbyZAkLnr5W/ccg0YFn6WndzGMWsph5Nu3B80pWs+bir3v/L/5jFLxhYEWD+42b3ctT9Lm2d7eZ4Y4ay7rHPCvST/a9jGWXta7ASaMMxmz+Hd17tPbTQdf6aSZ08i3vmGUo3T4/qrqpY3Z/bjWOVN65l/N12MSvkoz7hSb5axwz3h+fM793fLmV2LznO/lqv/f7HY0kIIqA05KU5K6SPSgRc4w2HBWkGXjGYqCZggwmJxSmqnQJAm3zDJN8KCxuzZxU7LRQ7xdkDPEWkZ0mkLC7lAGQW89sxOuGnMpFjYq+JCsNTcVBZa5IqZ9H4nHDe6YXurBG34po7D+dfPGJmBoVpS3+Yc19ez2Horv//Xf/u63K+GVvfPsc/+R5aNfnP1+5XnT4peJ55U0k5TyLe7PK0oxp9/hVuVKTGz3Fk1jlTHWOseY3VHJXjSZ/YpM8bVW5bzw5njnbu7vXMrsDyD9ayy3u/l2SxZIQk//vgQAAAClFm1euZy2zTDOq9czltnUWdTa3jTbuis6p1vOW3sRJKaltzltyuVTLlL/MRMPz4y6C1fCgPEitLx0FJN2seZo6n+gr6dtaoUgbMVYPeohQceVRCbd/nP4lw30lpXhMINgLOQSI58EqUpqw5Cr/wzLLEeh6qwlMCNptQhuri1cJO3SFGnUNw3JFKsvs5y2KZqUy2WV6G3Kqex+P1buMH5x2ns3pHh81Kp5BNXlfZDcry6plbtCoDlV697WMuqbpOUsC/Cc7Vy/PZ48txiyvF7auVbl+hs0da23Z85FezsU+F7diZuT09a5uvrdumwx3m8MUvbxs493njubkN245f////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////6IklNSW5OW5QVTJiJZp1TE9CM1gVbwgBoYWpeOgpKPuOs0QTxQbaza+UoG3o2mfqJLLhp4otD0BoIq1WXy16QYHegUutNzLWXysQNf96ZZKK0BTCSqYMiTshyA53fKd6H7MXYm9nscufztmzjAOdjO7nrX95+t53+3c+Xp/n6rWmVXa/b1zO1U7btJbL+hd2z+NNhjKNUsC/Ca9q5fo7++UcYvLxg6r2thfocZ+tTt2fOT2O4U+GP2JmpPSK/+NPUz7Taz3m8Mgsb/7Ped5uSyHdblYAAbdl3TtlQNJgpipdJ+TBWYpZlnuaHD1Ch2IhK/9uXjACfEJz5puiB/EZC5064RaJxX2wltQQjGiugyi00qLNumIcHsQVMXkRhZzCppmLJoy/CgymIMAL4S9XSY8Os1Eh4N50kQd4wMkOgxbHOZraxj9q5A3YlCZ2dqYWN3+6yjkspKKeVzFZTXux15IuiiwSZpoCpHRlLuNdb15LSNspoL83Qyp8ocypIzAsWhqZyi01U7RRKzhYlczrPKVWLNmta1DUvq2MaL+2+crWcaOd3Ur27NJKI/U3Z1j2/2SUWVSfxrymQU2VnKwkkyTb/p23Jqq+T5L1PyYS7Dc0qNggQTR8lAiIao+T88WBAWKyXH9LYIj4eJRAsFBrAgaEmEIRXAYgvgyzy+BMEjy/rFjBGYuSlAKVbyYbT4jLnXft3UEVK3BBl2U70CoHgMDBtBWZEP/F0mdGHiPiv1Le1bmsatXDKerXeUv3rX9/mpikpLF9xbNXe5mQT7EX4mcpqklNWKQ7CZBHt28rdPN5TsszpMZDflVXd+5U3IY9O6lledwzyprHKW5LrDhXZThjOdzn7li5LbEjs7qZ352kiEllHaXdm/fygqTZVLf3YzIKbKzS//vgQAAACiJlU+uZy27RzJpdcxpt3oWfU61jTbuXs6n1rGW2sKKcts2zkkrFW3YIXbdQeCR7sKBgPQQJ1TaSxi0GQ3Yo4wkcacqxr3JBDSM1OzJOmvE4RRW7kpvI8oD1iv3HF9JhMHXpMNQc1fyzGDrWbHLo9C3rhDA2my6NRxpMJbpI91ZQ77amlzAc5QUsf3YqQTR09A2OPUMfdh5cXKlOOquUzL41nA1FN8tVrMzuZ3yklVy7ZmLNBaxh3Keo+UuGWMjrVuy3d+5qvqzW1ncu5y6tWyx5KJyW5zNJR2KSd5N6mqa/e7SV7lu3lZqT92P1a9TeW6/bErt28rFi63ef////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////6wQVJbLslG4oSxdyEw4ERKOgg5CtMh2rqqRhsCSuxIpQh8cRtencYQ7RaqdW0W9qdU1hMAvlTzCAEeFEn4h6Nz7tvushh8xi2i+aSbZ0qV44Pawsdmj3RqCFKXZaI5epXRO+ywy09QGUTEzKa81RWbOeF/HLPmHcd4/jqMwPGqdtpNJcJ6VWY7nEd40kqwqxmgvVrUxa+eo+Y4axn7Ws7O7+tZ9xufnWu2+Za1v6lFZ7VpMbFJZ5zK5TX8Pwz1nay5hb3Q4563lvPvK9u3ly8LNX0JTcm+/91tyxFpvQkfAAjgnnGP+SBHUxQQDSSlpJTGyQARqjx1jMSKWKHKvj7UkB9tlLLYcdQc4pyvRVsoTnbMhPo0w1RJ4KWQ2quu4oE5LDWAyavAUtjDdGeP21t2n0kEbkE2XtEUISnxVe7NnLhL61SAgwUuK/qzUeWIo2QKzoeAXMG9p4bZi1975awCcceWyeW24zHKakxldnOOOrAUWiOUxHXhu6h6xLH8lczR29anNS+1nS2IvqlpLtBKqkEyuan+R2rUoKKz9q5KZilqzUumLFeMXIxZt5TU7SS3k5IZmzyJUkkp+3pXJreGVPWtUeLOgBTk2u/lklSIUraIIwMcGVJwwErTsaB6egtElsogGeHGA7W7OqGIJewhVJv3bWCea3SzD2xgUMg9Eaes7EOLedBgyiDF2QIDUr4srGtRQpLxXELVbLWsLITsKgiQjKnRuvc3RSku6FrBd9kbU2f5y9vJa3VmEy12GptlrtLsf5rDsPFSxCH5a/sipXAnYvO253LdztJu3ZzsPzEqaU2qleI19S7CpLK9W3nrKxhT2u0uEv/GxvLK5Q17k98zdwmr2OVq5S1MrOVNU5ukylHM8q16xLfszt3Hk1YoLv3q9Faw+vWv5L//vgQAAACLhj1O1rAA7SzGqdrWAB4BWVR7nuAAQWMqjrO9ADrJbcm+21skrIFuaHQKpwbRMEUREEQKJKAF7BorjLXlphECFwQ7Z3MOLDktXgylfqjraRwLBcW0w4e8iIsyN2qr7S5Zr2P/QNjijGZM4UWeGaleNP2rGXicGTQp44Ecpt38VuAImXOApozF82AMpX9JaZ1aRj9WMq9gp6or+DXWXtzhUbj/YnhDN/9WabnKm6LWFflWi3MyXlnn8zuY4WqX9YU1BPfnPVqtnf3MrGGF6aw7h+eX47zr4UuXeYcv7ztZZb+rjhWt/n/ccqbL/5fsCs4R/f////////////////////////////////////////////////////////////////////////////////////////rJbcm+21skrSGO9Q5qnCs8wBJLhMhWtaBeQeKzsteWAhEAFoOrZzqL5f+kdhlKarA5uGFutfXgxIiMq1ypHPPfHG5y2pCH5emlqSuXyGQRGJ77nVpXLicSpoq/TsrqvrGELErn8YFNRBp0FNYd5Lxptps0zIYYm2wTs1Bjyq3Qa7TmR/KP2IBo/1TX+cqY3qmFrdWTbmZLjZx1zeV7DtX8OU1BR7znsqt7HGtWsfq9Ncv2OZ5dq3d54Uuu85etbztZZZ/V5hln/e581TZa/V9RRMNABLBThmFwudr3m833/jo6DbbMA4DtwmqiwaBgagFiAAIRByGE0AcZHKQD+NUMLoEogAAMOIEwwGQRHfdsxUGTSLLIgQZSKUD9uHLz2GCggCgkRpNJ5RK5iuYuDQYG0i8BUIqcWJVqxXnMuqBrvXpGA4A0EGW3fvWKWdlkZnKOOq7Swj1e88bX1Y+wfXi1LJ5yeVww9lhg0CnDnsaaFRf9Dm8BKADDQbNXlwaUJMBqCrl3n6x9NiblUPP5OP/F7svVty7i/9jn653WOtfv/t15+N/hlhynuSGHKe3hczqXe1df3WX//733vP3SV9S/8aSx+/sb+7ugtyixOxyK/ciG1goi20WNlsuJxNttwSVRhyMDgtWGWEHkEMUwXTWISSDjsNkeahxshmIHRgGABjgLhhCJDfvGY8DGaotmYJACZHBA3791jLkO2QCgICQrSyRTFXDExMCgDB+kXQA0FV6UkSgnHKdl9tVcvmyWCkKaCYvw/jQ330cSKvxRtHFgHJgUUU3x43LVjywsRx+J52JWGApARZExlD84icg0MEgwLAsRgOvglAow4EM0VJgIQ0eBPC7nrm8LOlcNLgZ10eGgNbi8rgdBLhnVcuxhzXO6x/X7/Wde3L/1lrCnuQK7kbn9XM6lDlM6/9d3//++//52M9S/8aTD88LG/u7mLcovUVBO4ajl4m//vgQAAACUtnVddzYA7uLNqq7nAB3NmfT65rTZPGs+n1zXGz+aZdNxEqXB8XlbvGF7ouFnhiEGxTYZnOhx1kmOgyDgS+SeznrbHiGUzTWhGQCxXS9QDrCzPJu9DqtphBIEAUVX77M4F7NRPEkAk47UayrU0WjNJZxbA42Wq018P1aXbqz2cqaaPAVmj7RVH1RZldnGI5UbhQYmiQAJjv2DgdPVdruWIXZdqWS92y12Uup9/27zVilhVzHczv/yu3qbmNiSW8t4/zeWW8cZJBk/D+WtVsd4Z8jFiN8blflOE9LLM3Fq7qvA785ejUzRV6kS5NJHQ7vcusTlu7YhTsL2kOFivcpI3KqTMr/////////////////////////////////////////////////////////////////////////////////////////yzLpuElOe9LOZBfVWLzGAQEOKYz2PjPKGOtssyEHQMEXUQTM3SlHhbDNZnQyJigp02kM0HYLd2V2V2ommHBIAgc1lNWyxlkt+mrxEkAg0E6kDS6YlUDQzSS2lU6ZdTVLkS5D8RlN2Ha1ejdFUVNlyzNxlIGUy2Ox+mfp5i7krBAPMo3EzEB12uyxWMP3bf6QO+08BAqLQ9E8d/Jf+xLXmrUuMR3/1rs7Gr2NiCp+1jj+ONNa3jSwZKL8vy125jv/5Scr4PtapdUdJjXprr8x6N2LFare3haubRCnJndNevfj2jdhLqYt3N4YU9NUalZJRSSt0Tv7REwlYmYtBEYHRlfYwPHDMgaBgLNTDAZBKaipbnCQCYQHDVuiBtYDvoPlowDEkUK3zHOiLNyyQFvm2S1p70y9kPCIcHQo1yNUG2Iyl3nXb8mNTWbLFuuosKuqfl1MtL5myKEkSuWbs7LIIWLljzud5hKE22vY8ikrisUo79DRdq4U1eM2f3j/4446y3z/xxx/LKtS0uOOrXdZf8r/n/lRt9BFuzqimpNuSRGWUsolkMIGy6Kw/CZmfyluM615WKdpp+Wczt13wjCGMp3y9fnozb1TOg28VkuHb0owpcKHGZolFJK3Ru/t0WtE0JrQEJyCV4DA8aMyBwGA01QLB0BqkZzW4SATCBX2n5AF6B4QUbiowDEkUKzx5asA4PUlhdqD0bYtTV5BIhgkHRnSz1EOMNlLtO+25QGqCsyRbryMtR+daL1lVo1C4iIgcPAq5VzuTTVGE93Zr0MoJQCFhC4pEBzcENMyg8IAjT3lfuIS6ZsU1eM2f///eOOsv5/444/lWpqWzjjq13LLH5X/P1lRvNBHaW5OTUU+SR2WUsxGIYQNl0Ji8HTM/fncJYw5NaVPdPyzl+3JYhCS1N6Lfenp6bxynWFMfsQ9JvvUlTHC70u//vgQAAACeBn02tYq27YrPptbxVt3SWdUa3nTbvINGq1rGm21SAaJSlrAMqhCdFlLSNigNNJTQE9im6rYbUKh0bDOSeiLB0s+6zGaC4rfaV5u3917NUxGbu35c1sy0olBTkxuJknA20vd1b0GUsTWlAYhMHIg4ICE5DibGwKTE2k4HpDSQGqThTHGBgMDBjIgpdMiHE6JYF5poKoJl0fQ9BhIDGKcACEw+zpOrNf/////+YP5iVBzT5XGfFKGAuMzJgkyLFEqEDGWCzRBh/jnHimx4sk2iRMfaBPoDiLxfH83JoQCLBImxmLjURK5fLBNE6TKZNlCkQwzIcqb////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////9WiGiUpagDKoQlZpBh3woDFxFADC9ojpWGAJrEQBBsmkVESDRjv4ZEsBd2faV5u3+U9mCwVR43nLmtmWVBT0O7NwWQcDfTi6Fns8iq+13KViyg5EHBAVuM8RUiAx4pEuCEwgGbkqZqIuA8CCcidPu5cLAXuTUqxuQ0eRbgHgIDC66AGKQyqZgma//////8wfzEiAyp8+L8XAocaZMEmTRiVCHi5gseIMP7DnHibQKpTNydIumxXSHEXifH2cIsJ+I4eSuT4yZwtmpwrGBFidLSJNqTOEwZkOsfxEOtyf+kO4oAVbk4wIAPeWhSRWIYChDYbShgAXDbhKW1WmGGl4sb9IQvDW29N0p8ZnGpPwQYpsFpzAaZtKkCoLuw/SaJiaHSU3iJq7Eh2fO2qwSMYi/LgNq0sGCRUFTQSmi1lSbju0hRAC0wYHLapPJhN8/KarhhhLvNYVsY81p/VKTGwShA90tx3z//////////////9//////////186DtNyfjzNHmhDrJtw9uGtWHxgeTVakWa4605A+FJZkcVqR54ItCLU5DMtnq+5iV9fmDI/VhWVWIOLDtyNv7KnFhuFRatWj9Cm/bJmjs/9Qm6eK5mTl9LZUACAChIBKwTYykIULnaxKWoqHgqAVFjajgjkRmzwWxDdmZlFa/KAMulYkhck2okkSms+lEX9MXB5ysDci8TBkz1+soCwGipcxKExGnRCnsF4rvRrZTLVaZx2SwHhlpCRUXbs2duaP1+zcwmpa2BHpyUJJw15FgbeQxml5///////////////////P/v//P+brxzKm5I4KWYxZ1GXFUK5XXC3FHheeERGUQ8qRf0YafQSy897q0kBNIe5zIGljgw6/VLUXqlPOOK787G3uvzMMMldWs/7izS6X3bO71BGpuZs1Zs//vgQAAACklm0+tYy27X7Np9axlt3VWbQ61jTZuRsyj1rGW32aJkTs21QkqtL8pztUrigRVrSE1g/q9AcLRAZC7kGyhBpNizu4OuRqjVykceOPvPdqQ0iZdU1NIWOQWrlUjYodiQ6Z67DClHX5q7lDW4lNNZh2ffRqa6ERYPW9AMsfpeqjj9s+SggFr7+qxqcNWfWlr27EvsQWsmrA5/Fhx8CXcM+f/////////////////3Zbbtyu3XyqWbNBR2JdRyytBOr0qsROnjVLWqQVnKIvazgHDmcflXdUFScx5hTW6G5J86t6UW60AY3K9zOpS5XnpwqTUfpbm5LTmSf//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////tWQ4lbtqQ5U8YdVXYFAocDQqXwmEH0ZhC9bTj2ILhhG4rFZzuKpEQrXrYRziFt2Ib7D5aRkJZFmzflzVor4SRoktgQx1mKLAK3uAvNERJtoS1WsMpfhnCjDHmSLCv27zW4oz6VpQWUxWnLJTCWWhst1yEeM918M95wDSs/Ny1TWtjr//////////////////+bpc/r933WONy1y1fsamcsKaxH6eNcrVIKzjEv7dgHGxnH5V36CpLP5hKrdW5J98+CKPKWSGgr1M6lLzF6cLkcm5bc5QyunOwkBxqS7VvbIks8U3WJTkABaaqgjUnYAyRGgMFrdnE8X2LZmUtuKQYSm3jLIIHnOw5cCP80OG0y1D2LpzuavVsCdysF9lKCixVdu6+jPUj12qctZXYsO1RXr7KggyPsNZM2jlR5pFNDbaSRUL1M3Urdh6HdL+4TsgjsRnKkYh5NozdoFEoF1v9//////P/////9f+pRZp89zLTo1BckpYxk40bxympTAz+RfKNWJmdepxMrcklk3nfp43LZfH60zi7zzS+zLZ3Kkwmc4tfs0ucqkWVfGXWY3BuLwR1+Zy3HrVLSWZZKZXKMh09rZLjdluiLcVpeBH9MBnYoXR9BgYRrT7A3ERYBodw2JstjAXGAS0cUgxcwnaGeEhGbMakT9xuU1xQ4jOTKL5yJaDdH3SWfiKjoJc3FEKWMzS6d5NRAKjoBgnkfUvlAUFUSjK1lcK6fBrKhiZb2oTE13ZqRxGxV15ptmZkluK3n3on7WwaeQflK8t//////6w//////1/6scz32q/Uuj9BSyjKBqfHWVLLoxT2o1hVsx5+LVuYsV7tunldm3Q1qXGNQNfxs2dUnKuM9bs2cqae7v6azbm70ESWHb3aC1VvVb1WvU2R//vgQAAACZdm0e1rIA7Y7HotrOQB3kGZSbnNABPJMyk3O6ACrJJbTjkjSbisK76iRkVKoBnZe8yt8zqVCtWohBSte7Q2bN0L1Z/oYCUvzisOMvbXk/a7WboyuhY7G2/ZtAUHu7FojLX2moPleToSdw3egyRNCltJ2HYteryqbeXNlDlNDXpeh99HhZM3R5oTAlPjOPBcdyTJ7mTWmpB1nvdUeqlJXt4Ry7jY3N1pblq7Ks+dk7+5W5i1XhGGMjqVpirhuvOvplT5T+NWpHqm7tepPfb+Yr2K9uTztHSSuRYxuX1sbVurhGJqBs5dSzPe9pJm7PfjyNXa2dz+0mrlsp///////////////////////////////////////////////////////////////////////////////////////////////////////////////////1ogJtxyRpJNPlh+kZGurKYGXvMO8KntDLxlBTL0U0V1amQHKM7+VIp26ECSBPRmEHQ+6tHWd9wlitbZhPy9tmEPcoKuJujrvswWWw2u1oz7LidZsE+9kWpu0U/OyuSS+BZmVN8MGL3XmxFOuAHjXc4UjisrfqRNcpLMuio7KZyiakovZ/I+1JZXn9RyrSSuN261LrLcq3n9+U6o+ZZzlJjb+tcx1+dmUVt9v/dwrYYbz73PusLeHc6OzfqV6PGnt3MbVurhUrS7trG73v4Xbt/WPKbevuWMhjSWSSSm23JLJJJJbLbbcFEsGFQ6kUQF8MH5KUR4tEpDMbgUw8BkTDHpuDDQCZ6Bh3B7SttZlzSY6rjJGdbcqEBc6oFtqCUQWzJhaCrE36jjkrsZfDkYaZGZfH83TbyvTPupixHPkos1mzWdu/XduPw/BkERbjnNKcNucfZALBZ+tSw4wmlTxX9yFwiFtFCC1FWfmL00/unxsYw7EqyIkKgCjlmGclaWEB5fjqnq1MsKTLdXVbPCU0GPZ27JpfjHocq07+yOelF2WTUYjWdDukvZzlNWmae//K9NS3efSWrksmbdPhztyxcgqW/yXzlmkub3XbZJKSTTUbkckjckttthxjD6MIiqfZIKpgeA4gE0wZAgGCGDhGMIgCQEGR7JGYANGXN0ggH2hQbtstKnTXVB0w4sZHxwhEhJOFMJiEroYAlLpuvJYSuht5JD7WJHfks0ueMVq9OzHGphMUrR4fuXHHpW4uFC30eKahh6aSpDFplYBJlBS1yWUE8KD5fY7Q1IEJCE/qW261/u94cpZq4pZaudsYdgtkZlQsrs5SurlasUnfs4Vs8IrQXb0ms2ZfVv5Usrd2NxeCJXDkqhNf6G7SXs5ytWma9rmFeepd4dpLVykmbdPhzUawuSS7/JfYs0n63d//vgQAAACehn0+9vIAzsDMp97eQB2/mfR65jbZubs+k1zPGyzbJRkbdsZUqFrAWMKRcFKoeAbkvBxssYcARANnJGx9aMBg5m1RChPVXMMoc0JD8uo6R3WIbP1jG5ZqH52RxSgrpbg7+1ZuKVvot9/YtBcrkoQUSChxT+NWV44UNwywcvg3GVtNb96kOAcA9aIK7orPMDhb/vswSMOJNRuncSNv5AiaIJJHiHfj79u3P//MP+/E1VF6kMomGt+kr8zww3n+Nrv6+v+H6ncfz1nbww7hV+5FZ6aYI5ExK6WL5ZXJyO7mIdgTORR+MUd+rHonP00M14MjEYjOdt/Y3D1azWuS+O4/GXzhjKglX40+VjK7v////////////////////////////////////////////////////////////////////////////////////////////////////////NkkiNJyVFSoWq2sIS5dkhAlab1cMPkii94EFzYB040oLpQrFIhMlBVxaBRHGEvscBSFUW7Xsbl0Yv0kvlIjJB+9HZml30iw9Lap35S1SKKppWfGNX5l/5+OQuV5zbGgoAyAeJSQf1ejd2SO0igt5FVgUP09ePSivKKCfggKkpm2LGoxe/+YYUEsfcQBCwJU9E0ka45N4Z27e+/jay/va/4fqzjjXuW7eGF/CZxuO7biTBHcmJuMxemzmpDdo6RxYc7J4nGJ63VaMzeTy6GbsFRiWRmntvrK36uXq1ynjtLuYnZRlQSq/jXysF1Y0QCm03LW3dIGyt1L606LynF90FJRhAUSA4xPKjGYQRfdB20oYEgexSiUWs3GBn/Ot8p6l7kARK3W0O3DfT932dOK/kdh6JWmcr7Aih4KY7HFBWkR5GVdDCXSbhB7pI+0k6lsgPT6AoAvtBxShL2sjbCp23PTNLZv0LZQYOrPo78cr/vmrf5XYujwNBIq0nQGkG5Xcvyx+x/8///XO/9rX83rmXO7vf9L3ULq4X7k/38b+HdWq+7UUwpZvKZXHRy+XzdrdJfzsw7empXvtuFTuHxh+L1uV3tP7ZnJfDVH5etEoqxNyWN3NmUfdlG2uksRAWXigGDhMwAKAIVCBgWAGQQYqrBj7oDVQKTZTYFj1xtUVXO0GNb7K7lE/rKJVP72Qyg5qX3eoXQKzSHY1VfdeK1wUQPA5rL5UsxGWRNPa/qGIjKi+qVSXBMCFrvOYSAbMoHVgbzTImyZSuMbjkvguROIYEALO4pt9I9jvms/v15OFAANA0RmU4ITGYyqZtb5l97/5///8//y1/N65rnd8/7OWpHVwv3J//xz13Vqvu1OYVZvsQSzo7c/Xv7wtbxjPJVK96txadw+MzFjtPe1GbNi3DVrNY//vgQAAACh1m0Wtao2bYbNotZzRs3XmZQ6zrTZuhM2h1nWmzqSJKrckthEy9EUFLVL27CMwgLWFVUGhbTRCBQtOWxIsCJTyszLItAf1iRUBKhfxsIMCAl5A1NfbyrKGtrIc936kUHZosauRGPCQOOscgh+3BxbIusCjgGhgYLQEKkCI4OQImI4D0At5EaicwMeGGfBEMIIOITmTZWC5Y5gWWjKh/RAcOlHcKiTx+OaQMfQGQOAwGNA3LAxxKLZbePoeQkZAmNJZ7/////1vUvOJe9a1pJGyKjNoesQEejIkSSLyyGE0RFmKxE1EUHASZqXSYPk+RyA3SgTiJdIQqHTBn///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////9SRIUbjdrImVgRQU1SvaMX2QAs9IGC7DygIuqJrlDKMbZnTHg527ADtiwUibCCChFJdf6fgiZcJQ5Aqw/8v2QXvLWmY40/j2zFp/Y7D1CFyguoD1xnhKIjcng9gc8MaB+AWUidRB4GHBB64AwAeBGQ6jwYLAOBCFAaixZodCQIbpeIci6iyQ8iwIVQ2zq1FIuLZbdAV4kAiZAD6kQTU/////616l5QNvd9aSRsiozQPgiFEBHowIiSSlkMKROpsTxPpEAIISZ4ukUNyHkdGuTBOGZOjyTh0LajRKKscktaFzUSrMrCOCPCoUTJTa8iK9sKWCPZ7YrzjldhKHijkIdkAhDEAmIs8EYQ4hVtYGjtHOwEnKzx3Gfs3bcKNWTsRla91LnGhxsTkPw462C4YhEoEl1NfWEYm96NzQXZQ6sTkDWUWVZ443Fe000dDRjseRKbKl7qzK4flcOTt+dg0xJx/rkRw3Wz7cy1yb40qWDic8AF1KTlu/n///////////////////w46DPHVn5fhxvIEsaxwqQXDUafejt0kWqzObTaDCTSuHH3qX4k/tPXguAaj9yeFw/EqeEbmKub+Xd3LT6HiI2ygZFJLYRM1EsSLNIBFqmGCjo7qsQu6zFoC6zSth+g3ULeOFJoKUDHkD8uwwIDRbN+lgWdWygnEBBXLxr/ecLQ5lhrS1AlMmtRBpS0JNE1Ok7wSBTUUMeJULD2hJGEQF60ObJ552UgUJYKFOyt9FdKRMZyXsgebEIejh6POW15yG1eZYN9jDjiIcnlANirNb/WWuV+NKkhVHgcTTY3P/f//////////////////7wqVMf/Ucyww/HDCphald/PC1jdeuB5RyQS+HH3uX4Kf2nqwG6NA78jfOH4lPwjcolN1/KfWFqGPi6//vgQAAACehmUOsYy2TabNoaZxlsnZ2fO6xjTZOvM+epnGWzaJJLjcktjGsCs2CHPLBCi40K0gQFzP+nG0Q06ZNLbSHdlsrtNEXgg/EMk/5FGoxfzl0fQua5EGFVoEHDo/OVHpxAnHmuwHebExaGnBfdhLSWwssgtRdnMFLMT5aNCpXKV+pmSpMZL5ZKbhfpbLMXBpmTMCnW+suK7sONQR9UdAwEuuRqdrTN2U55XbNllUQHKz+R5La0qppd3/////////////////+gUujjDom3R5tsusuA4M43ZgEF22oyOC4aXXOPZfwZ/T4Rvvz96iwqxiYs0GrlJlP3a9LMWKtabkmX/csp///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////qVv5JLELYFXUGFOaxpMsoEiQjNQzhocIYkKdL+b2aoFEJXayS0Sb1KVUQkbrTtm3FomxQgBGJ6ebQlu+fHOfJIKHmuyh2n0ac8S767ws01nMrlYbEGCqWuBInyUrZg8CsD7oNQ6/5a5WVL1UCabEmXP82KMxiisy1siBoMCg+blV6tV3V7reOLxR4cbG8Zdjl+8v//////////////////2y53JylkX/A79xyrySP9dh92KOV0z/2KLLFusj1G+/Pzkg1VjExO0H3KT7e85TMTlWtNzXe/cpdrSkQAXEnJY27ZYmSp+DGsF/Uz+komROmlisMgYGbY/ighCgH3mGlMCQHXYLgQflZfWSS2BHkSxY0xtWKGHCIGoB16P1JHCUJtO49jAU+0gXVJTCRckBq8bm8rD11uYX3nVyvnDMocx3msJHJDK5cFB2LWEQn7gZ3G5wigzzfunZGFCKlsqlcolkT3jHal2ar/k/grRZ+zaM6mcd////////////75h+8rtu92PP1FuzLgQ5G4hSWo3cjO8JHadmEv62Ogjz+OhEoCvNepPjLpR/6SmlTtw7hnNyKXQJQyqZd6Xyl64fx+nj0TmpZmq5V6pLa0rZYmink8Smis5EA/Y4yHpOUlayo0TBZ1GqgaYTE/KYUWH5SHFrBfyTR6IRVOhmaSYVMBAutAMCJG1oAhKHRbyh73LxQuZMyZ8EBppArpd8KViYCXPVeEEo7rLWtDyCdOCLpFLVMMVurrlmXyFiHqLlIrSmJvHB1HDb+Uk2+xhkvTFZnWFPe5dw3rPUFS0kdD4ab87Nr////////////////LefO5WcIBhlpkslcMRiek9aWztNCnxj8Jhl65iIP4+kqtddKj5FIPjcgsZSp/5bUlf4T0Mu3TVLcvpYm/dnlPHpXcsbx//vgQAAACepnztM4y2TYDPoNYxlsnkGbM6zjLauiM2h1jGW3/Ab5uSJORgi0AEagOgVWwoL0otDMAJVMEJNFbo+/jxqZv5I3Wa+W7k+cSJ+cjudVw26evhk8vlK8WEubbylI87i5rLN2MtwdV/4yw2LxSVQFSyNdllkM24LvQVdf5+0xmqNBdBh0HWG7PpHbErzk0UpYtnKxEIrX23Wnq+djDPlnW84OGJRo61z9f//////+8Ofveef/Wvf9L9nPtnV/PedPflVHbuVLOdJydmK0kwxr2atuPyzWvsVbdaV2qK3q/SXaeX1LFWrlFe4xTf2KHu7Pq//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////bQBMbclsbdr+M8Qkq6uINqIbaKk0ys7gV2kSlxSKauUhTKrdGvgaX8SgpS9s0MTcrk8fbVPyHmZwxGYLCB0MUm0Yn503NnK5YW/zQ2DQQrqWxmls3Fhl4tZa89r6SBmbuPuv9RxYsilr+NflUqbd/4bq00iyzsQABA08rE/lhbs2MM+UutQVLRAaE4Y9+5//////////////W5/4/j3styo+7ty+/HoXfqTFL2xydmK0kws18aXPGWT05+pZK56V2pNnq3Es3/l+NFjZfqHevPDm+3qG3nRalgJDzU20IdynCqyVkGqwNMLpRQRggcOuhi2ExXSsaSQa9YhFATMHkHSi1uXmjiypZSUjLWAonF4n4aym9DC7kb0LYysI7Rb94WBIoJBqlkzXGZqoruXAvOB3cbgpSrVBqYb2JKTyCFeCwwqCqZuUNp+proar7T5VtrVqHCpPS67uqSnEQ9/v3e50v5U9TfK7ykNYCUk3d3ubw///+/q7JZRG5RudlVifvVt/QztLBWUX1A8oxxoH1eCG8eUMVcRxpl5YRDsNxJrUopIrLJVx9HtnX1hiHYnOOxFKCIwi5K4jnNbjsswdiZhb60Nqs5tV1ASQkkyNyStAuPYsMlYse8h3SZvKzvE3EGDdEsunS6Ft2EmH3wkCqw06W0scQSw7lbfyINIWUhMbV6mQSh9EHl1w2uVQVfTXWSKfdGgmGextx2fxVpresmlJeBKZOBDqk4sAm6+0OtQll56WttYU6a6sMx5jlyaylsIkFPONUMFBFKUZbm7+8f1nhvCJXZQN4wdf5vn////////////75l/3ccZr6bK3AHw5dg1uzr43rstcR3pl5YQ/MNxJwpRKIdootEWIQJRMpisVn7DsRSYhmBZyV0blvE6zY6SUwVQx2CaG1aeW66hKg//vgQAAACk9nzmtPw2rhrPm9YxltHBmbP6xjLbONs+e1jOWz9tJV9t21il6/Z1OplsPgCYlW5Cio0ugRDs1ImAoKkMZ12LWX85FES0egrVeaALuFBe3MA6wjaihqczDOaylQkfB7nkm1VCQseRK2IP8vMFOw3WVtkycFMphENR9+V2zGaYTts2RPdJoDOHket9FbWXw3DDJ5bPQewDNVUiMgCgiP4RW5zX/jc/d9wQRk+7hO5699TP//X7/t2Oxmkm8IzG70tp7v/Vs7x1NalFflBfmIamae3L70Z7Kr1TKzhem68p5GI/ADyTczKqakh+GJuJ0Euf6OSh29Q1KrcXeuOvnSVMsKlyre8h//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////oAWG5f/7CblmxRazw1iQKeM0SrHgtdVuZeBPj23ItvAtzWoZlA9KZzXQqhAth94w8TO2Is4f1LtTNSouATsjLEGaNtQM2akx5/oIuRhWN930f1skudWA2nS2pI27sUi7d15wGztecLVWftNGUS9W1YFwZSumMJcMAbOz53ASWwWNwBhK6Pmv/HWqsPP8QHGhOuKz3n/////////////+e//fP39Sk+J/I/jFqhzl8P3n97Kr1S1O0liP3YzSRqXVJNK5LHJq9DdPDc3NS6HspJIt5vFPw3Dd63KLFvVS5VseqQskqNuSJApscji924+QsE/RB6x4UTNbI0QeRjy3iGIfWAYwKGfVjtO3RaK37csVnXlKFBI22zOFSvsxdgKGbSxIUYV6paoCXhViKo10hnm9f8uzKmBPbPy9HmHnLYUz6GHVl6wDwsckinmYvJF2Gx+TNRSua+zWkmZbOY0ZEi1CRVo7Ep3X//63cflpMBm1Iq2ewx/LL/7///45f//ulxrVO///utlZmLW4IiMrj8xWj9LLbkuj8ShmxcpH13Vr386k9lMU12khifxuSucvVJPqNz8lp9dxqTMnzpvwmZDIXAAi23LLG3a9j0J1vzkp2nholDKxQAMQuQxOG5MjiSqyTM1AUCq3ITIRfa8WZfOVvdGH8a6/zjt2HoDEAYwXKA6K2m3b2syGAIPhtrT0r6m3jlKOjW1+O8qdTSGIKZOwVL6rHIs2j7tKXfLXld5ReWv0yxeUCOpDyBUtpnVuwHLAgSLTD42r+uf//rGHIs25gaMWs5V//////////////Vzv///rtyN193npg+G7covxmlmYG5QP7ORjtn8nhn5PXnsodoK8BR2+8sJpv+WZvFLHyh2tqw3kIwoaStLMpG7PyblA//vgQAAACg9n0GsYy2ThbPodYxht3AWZN6w/LZuys+a1nGm1kJILjdtsjdrUL7IXKwJQJ5264sagR9ZQKqU+0Okxbu2C+6BYc78om30fxPKhmnvXizxmy3oiCQL4ictVracmg26uF91mgpy00RZ+3McSqKBpe6b3LjjrMqrZHEbWAFsPa1uMNKYwpJpTz224wG6qjs1J5RYdyGM5KQEAgNPHcD2oF3vn/+sPhc+IBCXuQ81l//////////////e///95/luBtynC1uOz1J2pWsyWdl2pTUms6a3lHb03YsV8Z+3WqXfxt2pdKaW7T2uZ00tsXr+Hc43P52/R/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////yokmWSSRoJRzIfTRdLSwKWGioUmG2IKje9CqKL3jGKQLcWyyzIui6kooTK6BnVawrppb0o3qOLkQ8ibbQt8m4uOxtsDKGkrDKegCHVglaYKVTb91JUz57ZC9EAQ1elL+vE62LXX9bynh9hMdsJQKNOC88LlU2p3NOS6DoBkw0Mar1qW3vn/+sMo9eZyQNgfuNb///////7///4f+5Dr9/9WvrU/b7Z3Y+9rC9UoN6xnrleI1892JiclrNYEbWUw1EXfnLcRbs7jP89xeKw26rMr7A4fmZ+DWuzFezLrz5v3udskAuJSSxpSLhm2mMGwEJAg1PQKFwQGfW+I2MoGerDjEaHqOUJ4CSNZ2gFAAkMSNXn7YIWELHIWM8wHFEC3Fxag40CRYBaJIM9BEtLoK+wEsByTU0qnRQlIPPopasI/oNAYeyhYBrC61ZUDUJiRCtSBIOKSZjTd1nO7ZSCrv601nixFKjRML8wNA92Mb3z94dqYxWLofGP5F73//////////////57////v/ubufYsfnV7TclcvnKW92UW6CtSd5hLpTbpavMqK1Xj83y7UzpO1p3Vidi1uKWqSQzWFeN0zFuBAe22/rKvU4Z6uCCFxpipM2xgkW+ni/jBxiNp8w+c2hbSwuBU5J5AA4ScjJCYjwSeji8aSQVAmPJYQ66uF/vOFyrPa6iqHLfMSKjow0uGqBCpHZ8kAy5nObir1nCfLmQ1CZiq9rbshYevWTT6gTiAkGzZM1OpT6ymmNhWEcZPmYTtAAsvy601VqUP8/eH1MYNjUQA4xAnb/H/////////////u4////LX1YJpMbOss7/MqKNw/LJjD5RK6CzWtYPFDz4N7BH3lixuAHDb6DWUrlwp2kxOhl0Vpb8eooecCPyl2mfNNcN/KZ3vm//vgQAAACfdm0OsYw27WzPm9YxltHQ2dNexjDaPGs+a1nOW1khJLkkkjRSbUI4o5FGtJDqT+DGPT4cRxxUcbe7GZjcch9sqb49yA3ecpC9/XmbrFWp2VsNWg9Tzdn9XUmbJ4OpGDsobuutlFLA7+PKqSHqOtH4k3dzrMVa65zcH/a2qEs7URXdlOVrj7q+d2KukryaghdKlD4uTP8mF6MUdqvvGr2992d3VwkUBjpAbtmtrnf//7//r/u3vucuUl67N0ff/+0E938ZZyasXa9rtXmqlPlexobEtq1Na1au2MKez+Vixjhb7ScmuWqso+1Q5VaHVS7jfwsWDy3////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////2xpF6y2+MqZjkALsqRIREYrfbqNOftE5kRs8v6J0kRXDHnCizMlaXVx6IIvJMcfiFNo7DPm5LAstXS2d5U4JtWR1WEOjZsupD7C4pC8r7+MtlskkDW26w41xzMpmVyvF0IAgll80qg4i7VHmIs4gdxl2KMw4905mW5TPfLs3T1Na+7e3jMNgtuECzoet5f/////////////3b////cv/nXkF7WXa9/e7N3UnqWNzeUtoLlNe3NvVf7XpJdTUtLEakupZ63TVp+fsU9TOcxl8/Um86+FndviuoiInCpr/mpcpxktttV5JiIAtkgCIzgF4n0MnSdUu7JVNXFRMXKQnHmrGfenLi14ZjitqDyYaJqmxbpPpcMmf5aTHXVvoopprHSUXRFkV0h1Bqd12Ds8h1YRkkkfhMZWJThhzPYFUimsXpfl012OWn4oKoRtYOWwMoKwRSp+W3fZvWLjLEooTO3JXLrc5zHH72MEyIckIpIRzW//8O///v/od9j/5Si9MZ95+//WWvrwzzOM6moxqasWOVKKlmr/LUvllPQy2pjKJqWSzGVZWIB+H8vkVNRzOMtiu/ltPKZuU8pNYYblyb22S/v//YRspxGmC3JUQHBxkMpkrWbqiiGAGzAGQMn1JUp7bXWdrzRKl7KURQFETHOSvlvFbR4ORKBr+b9FV5n1UFXipYociCy0vWkFCS24+GghQ9W42rMmexmGk0W9aUWaTOT4QPXWtN0WgLNaa+yl7WE3wIIj+o84zqtfKwJlTdSMRa3RKHEIC7F03nNjDdvkPOf/JLBdZIQ7q521Idf/5/////////////////8y0qxL+wG5kJkV2YfHNzn+eGCX8lMxDe4biM8y1UsojvZZLM4CeCWO31+6G9JKCFWJdFJTPUD+xCzE4xuM/hyTUWxA//vgQAAACkFnTnsYy2jWrNnPZxhtXMGfOaxjLbusMyZ0/Om3WFMQFHVtt9HLmzXVh3bZ4peqGolMxebQkuQVVFE6XJ8WtuI7rRU6Wl260AhcjJoZg2dWK1yWv27TvO/JGiLOpICnXdtwh4XtxehR1UNZrMeTdTMVcgBcJ+2usciTmxuCINa1bh9vmvK+el43/TFUAXayqGqFp6BTMXOfR40NXadbU9TXMZ3XP1T4RyNCFAPDQ2fvn/+u/////vv8/eH1v//////zpedwl2qb72N7OpblOF2x9PW5Nz9PKs7krsY3a967Tc5aux7tellWsKardoqPDDOnsWLer3///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////6wREAmyrtvonc5vGXwrSdxQJO5LPp0eWBkMIsrGrsQROoqWiYCLHhrB9gAyQU1SJxp0GDKzprNjqMtZQ3qyVMn5dlvdKcOvRNMXirUoe9cagGB2CTWSY16UQOzaWs/ZSj67LG2al/XVgBEZ3rbDpmdeJkzuPuzZ9lcIKg1yXsYq0Wsq+Osf+3yIUbvHdDjWK3P/WX67/////8/////////eFvs9zHk9Wrazt5X5TnKbN2XTti/FqWa+W5XruEusz9Hubllq9Uv9iVNW5hjGct2d37GFuwpuVEAyOSWxEplAJtNhp2ZUqPIxT8W/LRhCTLS0cnJtqyhv20h9pA6hHqXS++ZlORbizoylugWQrBQw5P2y5xQ+VuI5CQEUkM+mC2rvLiJhGQhcB2qjJIKQB31dIhIigppQNdCtgYmlIg0mSiAg4RAIlUrKyEBMFwIhGG5SZ+n6aS/LRQ6NPpq8Qt3ePhYr87umuqdq3CJw0JUaZr+f9ejx/n//87//vX7/+YfzX/9DOY/+OvuzcoppbWrTdLqUZW71NWq3ZiT26fKfoZXu9RS+5ambOs71abtzNBM2J+gwpK1FZpPotpnUiA43JI0CUFhCQ88VOCNAOqSuCDM8DtDAsgi1oNPIBkzaRnwsUX8AJTUaBe5h/yeG5vNVUCCCEhyg5Z6EiXxEDAeVKmOs7lKwrzI9OWEIuUPHFl2ukgJIZTCUw2kG6rEYFT0b9pKz12zRdERiAAIVsLLsCBIYs6qq3AAB0imvRubp2huHYegkCq2Aq1VgFn0qiWF7f5Z67KHJKgMx0NAY/GNjn97+Os/1W/uWvw7j+sd/3m/19BTd/mXd6p6GX5YyqnvXMsorRZWeUWrV/C5llL6SVyq1Hbd+rjln2rRTtmltW5djy5SWLIxk//vgQAAACvdnzmsY027UTKm9Zzlt2+GfNaznTbN2M2e1jGm3lSADjdkkZKZWCaCgFWZIMhzZgsCJhytD+qggc6kj8TDDOlGZeIQERJfKJsvMlBqo4KNbIgqsIQhVEX4gCDUU2xufDrgq1NOj1HHcplxypBYrwQNalcvZk02sm+w6jLypGMoJgs0iwhJEYRBhZSkwaHUsCwduShjlL+VO05TynSq5ZVxFiyltn85M3KtXnN6zdCRpfHZOK9r0f63Vy/////Xf//5///efv+4/Vou7x3n27S2a+O+03MrMns5Z1aOmhqcysUtHc3TSivctXsOWrsZt5YXcsKluzXv3spm5uc7l///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////+62QVZJJGQSlaeo6Oy9ZCMNBYLzHu7ZdWiFPg4alzhouk6jgqQC7A8QsBGVMCFJtqVpzLWcshQEqgZewd3qIciBTTlPE3F6GvQq2+UNXKZ/AIgyF/4fWHv13vZ88CwrT29UbSueJniKKmcKayslWFCSjSoGOB0l68/cBwZOyaXzil4tNLOU//qlxx/f7pHZJFz4QFgXl3//vLv/z+//9/uX48/W+5c3/91l+9b/msbNjuv/uH2sssqf7eHJ3tq/ud7vCzn3WF7HuWNrly1l/cMrGQLJW62SXZJJGiSlELkOl/JMQpjS8oKsgqA3EEloHGOopBks7TExLRX3ZmKlgA9EZ8LAABFoZbJmKOYrIvGB5UtCWPsSpHQM0ZnL1PzJYHjU1xt5Yl2nOslYR6keFzKsU+mMHBBIKpwr5kQqEZ8m6gUtYoLvxIFlKDribKmE6T0QXRWbD+v+3aaIjhQEh+TRv6lPSfzmXMnhaaXbF0q52tTuX9x3+t/rWtd/uff/v77/f//3hjvPuufj3mO62fNf/1rFj7n6rWK+dqtezrS7tLf+tbwx7lV3c7zG9vHDeOWr21zRkmaS22NJNQmUoiLunQoQFvoGMjQqcmlD4hYrQuuQR4Lhao3VIQLjQ6ttOUYtl7a8+wh5nCbgmQXyZe0FqhDYLiU1jqGL2Om5EMtSh+BElGnLsaRPymQS14IgsErxKwqg3IctMhTJKyGkli+EOLAILK0Rct8oOuZ9GcxZkEbmXtnCUqgyChCaur3a+FjeeGHZhTJtDAqztEF6yie1zf/+u5c/v653mt953v81/Nf/M/x7z/7hvLCr3ufdX8OWK3LFal73CxvV3P7lL3lP3c12tvPWNuthlcs1atfptI//vgQAAACjxmTWsZw27iDNnNYzpt3CmbNaznTbuUs2b1jGm3cbADjckjRJSbFCXXTAfpLVGKOJlLpohAjRVCxR5LtRRCH3HhhAK3Rj2cYBxV2/ZXM19TN0kB9q9L6YhuB0LWHOWEcKKRNfcsdVgKwMkEJsVfd61gHGZ0u+CGPMPRDUofxECHSz7HrasaZMLAAUm0bwxjWH5mWJuTYj1JG4k9RK1DvJ38jErl1DPZ6/mWMHs3ChBC8oVN83r/w/9fr//H99y/vM+f///43eVu/c5y9jX5q7j2t21jIs6am13va3bWs79rLdT9WuU8okfO3q1vmWNS/nnrtumw////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////+VEkyySSNoppYQEl6yS2ooNGrsZIpbAWIMC41aEkp2PG6Un24rTQISLhQqQpvpRQxhGrDvq3M2WYvmAquQgCMEVpTTYq2Jk03Yk08415+VHKd643Pu5SwS9TXmaLRWVAiqq4WnKBMTlLtKUQbJoGV3BCE15VqsRdxg7XWXqCuoCiBig6dEw6kojOb8W9Vf7UcZnBmJZFch2U8zqf+ef//////8/X//6/L//88aG5N1cu28qn61KsqtirTR/cctV79BUs0c/jVnqWrMU/8pqlDOW8JdKqS9GrduST3e8zl/aRAWdrRMrckjRJSiEFu/TLCGKCA1IQ55MlSmK200CAEQK1bLiAkKC05YCHBlzW6N0AEbcrSl4GVrAr5iaZzTo9shUOsdyHgY/I0+X7gJ/HgpFN3qWisImpG6VlMukipkiWuJ7N8zppaxUgX+SedYqA2Rw+wR/FKEEDoS1lLY35lCmL/uSiaYkQmq+zGbc1Z3KreGeNarGVdmQgDi5L6V91rXceYd3zeHda3h39fhlj/8//u38u42bNPW7dzr/SdqW7OOGOuY8+7Wwz1vKhypuapNzVjDLmsa1qkv2KtfL9Y95PKjZWyTNJJI2imVitXp9lhUIggdlF2Hq4tZuIga0CEU6swyJYdf4OADSF0mhwLCDrpPCq60arPUiY3aKWY50sAH5Q+/S13DljOV/wC+zatyljxsqn4vG6WB7kxKYq/bNXdkCKjE2ywE1pbT5NcXQmDKX6XMmG8jA2uF+i9EJUNDhiUIiAvys2AXdl02/V/Kvq2+lyDjLwQU6FmkqlH9z/Df/3//Xf/ev5////z//G1jzOczjc7YmqSnoMrVSkt6r09urLrM1LKfKbrWbW9xS3MSee3HqfcZjcNY0ULtyuxVv3N45WaohO//vgQAAACsZmzWsYy27cDOmtYzltnB2fLezjLaNoNGXxnGm2liRLskkjRJRMyUoKOu/JIIPjslG+0PijLhpOxynxgoMKuR2kQBXwfBS6GIqXCW7EqCXV2GIvsUmqWXPSyJBM6MBJGuu+sXg15XsiKlKwMEqud6QuSpUn03N3abkh1lftSpwZRHYJeVkroo5qboWreb5p0/QKZt4x+IsSJTgwaKTmdnv0Wvo+wXVljczJEE3loxL+8y/v5Y/3f/z957/nN//Nf3X7/ev/6X8LUzhnT/NdufnWnf127eq4cwrZZ457v4zNDvdWZ1VuX8sOZ6/LveY1MM/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////91slStySNolKMe50caSFVhxXcKp1j0pyKs5CQ/6MDvtxKDVMpTPkII1JnadoDEtRlVH+n0YyrA9cOwNBKHMNGbR/F8yd522hmDKk0oIsZ61vMPZLD76wPrGMvxCoZcJ52sPcz1O9M1yEOK/48pYj2zNYJhKQSVyd6ExX0EFnRUwcUBILxyWHu49kGXZFltjSwNkBeHfeLqu/O1sdXMb3563z8c/5rv//P7j+Gu/z/7vm6t/K1fuZ0337+u81hVy7lrLesrH6sa3byu6rY6rVLdS9Wr54Z/lnYvcoOoWGMzFJZv/tq5UYZIog09UoBBIhYPHGYVLi3rLTK3UtdyXvQKIR/hxYQC2Q6yK7Ggu+Q1McPgFFl8FYo5Mvo1Q1hVdpVV64AfmlfR0I077O0nHpzjeEPVNxOH6K1RWYAk9+HGHSVzqiAhOx+UvUJ0DJFI6gAFOciNa+uh3y8oUBUYhENvfP3q9vO7jLpmgXytoG7IciAB97cQ5Uzu/vfP1//n9PlvWV7PX93vP8uY8pJykn88LG5TnKsLmu9xldaxVwxnNXN37drd6b7nju3VxwlfbHbEuvVsMv5V7RztevXU44AVEv+gYoFqPrONFC2pkAKblgEmXegs8wwcwd+i3wig0vJhxCkSDIM6QCht6v6rwplDk13YiM0qnATk23Bfqsv9vm0hqVSZnDBHnf2clNWlrUOEqjsTdNpzZnCVhZjWVDDC/X6Yc/9dT8MuLOJWoEXML0KFAkEioTG1AoJh2USy73PesfrSnAKwjYFUsYxnMf/f/Xf/X/3+1MdZ438P/f/h/1rtikpLEot1rPJVbprGNqv9bC9yis7ym6C5jU1a58xZvz+GVSS2OWsrcrkGu1+X52xGbOdj6mI//vgQAAACmlmyus5y2rnzPm9Yxpt22mXJ6zjLat+M2V9jGW1vkmL+2210bhMDaLltVjopKRAQ8M0g7txhkBYYyNF7UvaBXMrpmqLYAIkKjDgEGTWMJfh8Yn4w1K5bpniCoVNNUmM040zaghp7uUzfM6hUUn4cgdyW5QQ4cehdJQwfDLJ2UPJEIFjUBqMxNHMAivCgkRTWYXil0Ya85CfAC+jL6wh1nn5auffncNYteMB44fQg90J+tlJMe/+tc/XKn3L97VBlX33n1r+OXcLs5ViGsN2v/8easbvb3VxsTOGH0lfKrdvYWM8svxw+1X3f+/Zq0lmUS3L+8x7ZIhf////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////yyEq2SSRtJMmDXrNJiaFiETisJJnPWQvZSAWNkFjyZuCMEPx2Uha7VoPup6AwTz3cLsNthZCgReeA5t63ADiwSzd+Z2+7EEP1SMGa/MqwPNSPY+sadaRwXUpmYyFokudh2WPr+mGFxOOS51WFO2w2OtNZEwN/HcWY97AGCgYw/UFSqDIv9bXMZ+pK15AEYIaRs27cF+01BlHss8M/1cx5hSWas5I6s3jSVMLfaGdt/hW3LJRHJLvCU2McauGF6h5TxWgw+kqduY4VqeL29y/OU3+zU5FaOpfpabOzypWxtUuVfCvepKv5ztGK6S221pNAlHVH1F6YRAoWVSwORloqhQFg57kKsijqWg5kNu+05aY9TOwy4VOoTlcoa7lOBDD1RarH7E1LI7UbZ/HXnpRWrwe+VE31mBX7vXMKGLNq/kvgSAkwr67pluLIVglZGuM6S/WYxJmqR7AFpo9Qy7LGSqCXNAgebfulfou2ZmnytzEyvFcQFiDmQcVOWsb/2eYa5r8P7bz/LuOWeVWt/y+5c3nu/9vOPVsJ3etfnu7Vr7rV7uVLhnfqYVMa2Fic7b3ljel05T6udu7va/O7W1S51k+i6w0CIxDv9ttG4ljdZy6NAQ+BQVh2sCQnTO1G3JU3UHJ0dQkK4WDABSRwBBsEI7EQA5lPKZc8LMELVb4frym69C94XDkJgOKr8l0VkUPvHWJQRq08EDswbeIQqi7fllNAs/DsrYSumyypWJoaAckLLnF4FC2RxpfgXHiyZjMlKyQcsw+zjNafam1jM1q+N2vGVdAIY1bEa5b27+vwy/Hfc9fnvHHm6v49y5lhZw1nd1hljlZwym6+6en3jXvZ/vOZrc5ZzsU1LM3+2McLvccMOWK/bVavvm6fWFi5QZ51mCI//vgQAAAC0tnyes4y2rVLLk9YzhtWrmbJaxnDatvM+R1nOG1mjLD21tsrSZQBpZqB+BUDKCX9UbHwoJIBHbBl7TMLErSgmYS9aOpFSJ0TiGTSZlSnjVd+ofhb/y6YoY0pfNTL+T8WvPRQROlhqPvQ82dqxT/Py92N3qCQQjNyG3X81mo7LusokcsqDQMudVGWEpsMBRdYgFEWGgIleEaypd2q8e7LPqcZ4ysLlAf6TSGtumllS5fz1/f5zHOvlrX8s1M6+8t/h+OF/Otjcwv2e4WbOF7lLn3L9apMqtfHu95b/DDHkzVt17FvHmqCx2vjcu/XqZV7Vrxf/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////fKwb7brZWkyhEAOCWbsjBjEKOl9ld3C3/DD9IKDq7pAYp/oAbsI3hMFvItWDAysbXI/HpbDU6/FIv5yWlJyP+9DX7MuhdLKZfA2UatslmbENU9PKeWq+HJVVpIZoow8l16Yy8bY38jqAFYzoIpOgPEnEp3gozCxIR5Ze60mmpy3Nan8btyUsxIHj80SHPyr95lnl+sO//3e5aywzv1KOXX8JvLvb1FW1bpcssNd3zHHnK9fO/TXrt2tUuXsu51qHlyz29rDeG9X8cPvZ0uP2u7xv8raxf1BW21skiKaWNYvMptPo6hyZt/RITSwbdHIswkSlDI0lUuaskgkcCIhXCjqVYpyumjf6JNvA0QijAJFKMXjVxbmnq7MxHnLsslD4tijWPb16dh2kkty/EpJaftl652Kspct7mRNyfZ0lJonNLUqkKibasoa91n8qVeyV6b/0NqrvurVTKncgdK48plGOdqi/f93/7/G5qr3v6+7u/rDtJlrtS1Z7a+pym7+Pa1TVibvZWd9s2sdVd25u3duWs5fnTWbHLNyzyXdtTed+W1atS5EJ2xmUYdqJV20sjiJSbF/JwFplugy2UOGNFqLCwrBzMxDq0mZW+AGASFmWwp5oTXvf9yzi3QAyajvyx0nnd+jYdFnGFAg5CLyln8pllBF3TiM0/FVKWUXJfBkFs7lkAuQ+MBz77y+aic1Zl8w8sdi6omEOQw1L2VNcTBXU1qaaorYvdXLT4Ei8ImqWrnvtrlaSuyOBAy0gHe5nfvYZZ48y/X/KK+OrtL2mw7+H51eW6vNYfcuS7Pl3P8rFz7NrLdnP7nLO/5T561f5b/PmFShv6pc53LK/3WVFnlzf4T9/EJ//vgQAAADHhlRuM5e2DQbMk9YzhtWdmdG4w97YMHs2R1jD21TjQDbn9/UTC5vfEF5FnYaniUWXLZMCJIMIChb9U1CzSmr++6WD0bdU3aCId/Wuww/0LbNEKWfifwUoLJ5VSwqYopXQz/NV4dms11+XHMaLArGKBeMxSwQvV4+zOJ+qyVrjCGw2p/h8/MokJIixNsGNmO+pdrixI1WEogvAAELYjaTT23Wfer3zredyeHI1djtGVmoTHFg4hWu/tWPrMe1t1vjO/PbTVjU1av9QYG7yZi2p4Ue0uawJ4MWkbbdCnxIEA6MP6hbdY04Vj63ov1Hk+FU9CP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////m8gN29tsjSaWFnF3GRhDBKEqTfQ3jgOM1AgoTOlVvBFG9SRYUCSwj0OOKcZjLHDciigC1A0Ft9MzsAKzNbgiUtJn4pSTH0/ZiVODCsIJe2KTcpcaFu3Wgt0n+dyUN1faxKqsnhTAc5FDz3NrKZHRPm7zTWDpWuxGn7pZblPc+O8vVrtSCAQoFigG5ju/hf1l+VTC5Y7dx5Sbzyzt7x1ax1vXd4a/PXbtvtBcwww3hnhj2kl2GqmeW6mGHLX8/HeWX0Na3e53WssMauGec198TWnGCW5Pv+pFjkOwA4YXCPMh9F2G2An9q3k6Ro6asrx45UB+kjCMrapCkCQBFNemc9J4yPnQ+I3tT5d0jW7tylibkhPXULtqhYl4ty6ohRvqeU6YKdLe1q9ZRkjgpqIthiGqzqBKk2wphqlIg4doTzSutXF38LeggAgZbdUbtNkH1vRktI+x8zUzBzWDEzBnguWIcLDyZ+xarisJwjVg31q2qvIUfV95i7xSC+r95viS1oc+dxMXeS2lvAvu+6QtGHsnqLF4rlkpZp/nWNUn9MtqJs2kkbJKIi5SunbiF0FnekoSkb7hTbkkJoejWUlvV+WFdD0ZqHVkCWSgt2lkcozgSG37ldmhZhZis5IK9LB1NJYg+kdjcMHlcup/HI6erDkuVC9TK8hDmSlRNEdsVB+XaTqLyp21VvXTM1m8T0eEzPiNBi5m3T524bhQg53KH877l8QIUHwd5tVyzmuc1xiMxb3bzR40PWN3e63TG4Gp4m300G8HNMRIdLXzvN6R8Y9758TeZ4O7yxpdY1mDLUeM//vgQAAADFhnRmM4e2DBLNkMYw9tGmmfFSy97YtCM2Lll72wSjJTbdX1UUCVKGXtsIlU57ZIORNswIhKIYcDX4O6yFmjkuhJc2vQNOQ+HEeCGXaj2eMstT8qznZe8sVlGpVhYlNbDdND8Ft6tOdganq8znBGUR/mKfDiYKhGgej8uLAnh1XNFyhMi1BfxzrRz5jOh/PZ5qRXQIkDzaYZxhLkxs58RsnpF1TwouXHUHX0rsOoL/cTWH+oMR7D1SuN0zmHCfQoapixPB73WmveYsXUKs7DTUeJHgvvLmW07y2LTVhuemW+7wHRnxbi55WyjjK3s++u5fcN//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////9y0kyW//KyWGdBLsSG40KG0XVnUJCpq5ABak99t5MJFcX6s2xKK5gOq2k1Q2YjBE/do7GEegO5jjQzWqkTlPMLEzGngUgrTTZ7FQ9StJQnS7TSML6eqQgKUkKKlQmzfbyOmbTG+aY76eHPiBrFN6zEqWYAKgqp7Cu3V+p77mvqfFGGJrNfG+qR4eI0SsLcTMKPB3aXV29rgbcIcCsd64v8vNyxNQoz15WaJ7Ulj7gzRcYZteXWoMeLTEOKTC7f/X/0Kyi0yqqkwNqtZpaYu9PEL5E81os1IyC4WCjyNqlTm4BRoQx4bwD9rVCvcXkeProq1RuoexqREPF1EitkSrqE5wmyOiXtk+zK+I9vMqXNifzpuZxWVamFlU5xtSK9kxVjXSdmhbhPIW93bq6tCljHiK4locZ/pivH3qfNsUo5wcU3D3HgXzD1LR7DncqbvelI9vBvikl2OTW2zLjEmf9/BpjVHmbtlIOme8+YVGTWNRpbx9Qs0j0km1Er78r/SXF2/39dLJtcMP9h1HrNSrXnuz/rP0tBNVVUqlDuPf0YDQMxIB6KqXxQtM28FcuXgFbdOrQnBDGOY9Qj7uSAp2huRKtbTpzAUysVLlEeMDcf3cXq5nUq20Klzc29WpGSPlWzJ1ldoSpIywkdn0kaG9bS3Eu4vGxkV8Ryb4lnmfCbW2Z7HcGyqgBanIz0mq1xXF7aLvVMe7umr5rh56UjQ8VziDjea2n0/mk01zwexZpPF3TT2XFaS7r96gbzHmkze8sesaLAjN9M/dHsOHAKNEsgMqfF7EyAdc7vLp3sUGBqlVihs4bW//vgQAAADslnRUMMY2LEbRi5YY9sVXWdFywZLYKbMyLhhKGwWZlX/ygHZbQTyh8ioRB8fXES2qnJtApC9nYjt/QWW2lwboMtZp2wwy2uuhnj107b0TH45r8dlpNciXQw7tHzg5cfRlJNAmucGh+ORy+dD6psujIKocmIV7VPR5GktetKpwBjM6OVDH0beSwQda0sUYgnFNYftYpPUoncYa2CzLMP2JF1t+sfzeJ3+dgiciimu44ndw5PlrHPVXNwONIFan76w8SsvI7NY6j7f+SPim+85fYobrnXpPugnqebRzmBIXbN79////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////+thTLVKqohdo8NKOosxkqhfu0gjUtOnx5jFysax7UctMruvPbT4Gm+f9CTPhSkTrF5OjwnMsMrWVepVZh2zR4zuA2R9MrYoqPKQVTF1pXNjjWVz3JVrh7b3FsxjN95jT4fQa+Md5MzU3PNSu/4MXNY8Ol3kuNQo97fwcZ1Dsz6r2OkfU+tbfx6408hzapuNAfVf0rlrzrN92j7zFxen1i/s8gZvSmra9q5mvy5nLmf/LbnGyyClVvfqo26ir377yRe//B9uq/VVVlVFntuausBdrJKkSM96ApoYkB0Un2Cvs+LFHX5MPrSiWSzFHMRjklU7OOfVcQSjUk4wRJkW4UVjGC+SdpEs0Koql5Kw0RkDazU/2l/KW00YfKTPlGNJNJW0pK1nJzT2CatKL8i1Epccko83UysaUQooM6/F9ei/xdf5Cus+U23QvwLzTtp8UEL7KH1GKGiIZaWLWlxRuylChRtVht69jpcXOk2PFTDiyVXLf+ljn/3I6p6lGCregsLsYKpU45LpmClLWgrEAEsIzC/1nXqtSxX1HHsKpJyjDZHIccJDVe2s4eZQoMg4zvsPzxFUcLlHtA2oioHDEIGkiyi5yQFAjkihqyspFvYvb0h8wJE7WElCzlNIuSSXKsVki2lKc8taIOtGPuR0OOIUxc6tyQ4R4cP4x7QSZNIWEHOZGCjFsx0xG3MiJ80mxKSkWjaGLpU//vgQAAAD/pixkmDM2Gcx/ioMGNcSoABLgAAACAAACXAAAAE6u1lmlVBErVXY+7CeCTVahAkP2zcNYys9hkeTVyDATMBN557LPOLCWJVTvVxRsXkbPlGKpjY1nnv++bLPGbLetqm3y1q1o3Pm5/nn///1v/fs2tTbLa81SUzLU8y255fHn1Wzldn7zjbPw7TTglDQldR/PO9P/rK1PyOV////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////+VpAUACUoGX2utqOJOFIHRKpk0PY16oYCP/VeMFEtVDF+zVf/ux9VSY/1VdmNVZrt9U1/ak0AmZuHxm4a//SY4GIqaKm87fxku/CooL8Vl3USU74uTZvnG9Niu6K6Kx//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////vgQAAAD/wAS4AAAAmcgAlwAAABCoABLgAAACAAACXAAAAE//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////vgQAAAD/wAS4AAAAmcgAlwAAABCoABLgAAACAAACXAAAAE//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////vgQAAAD/wAS4AAAAmcgAlwAAABCoABLgAAACAAACXAAAAE////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////';
+    //   ↑↑↑  tiene que empezar por  data:audio/…;base64,   ↑↑↑
+    //
+    // Mientras esté vacío suena un pitido sintetizado en su lugar, así que la
+    // función no depende de tener el fichero: se oye igual, solo que sin la
+    // campanita de Steam.
+    let audioCtx = null;
+
+    function synthBeep() {
+        try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return;
+            if (!audioCtx) audioCtx = new Ctx();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            // Dos notas cortas hacia arriba: un pitido plano se confunde con
+            // cualquier otro sonido del sistema.
+            [[880, 0], [1320, 0.12]].forEach(([hz, at]) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = hz;
+                const t0 = audioCtx.currentTime + at;
+                gain.gain.setValueAtTime(0, t0);
+                gain.gain.linearRampToValueAtTime(ALERT_VOLUME * 0.3, t0 + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+                osc.connect(gain).connect(audioCtx.destination);
+                osc.start(t0);
+                osc.stop(t0 + 0.13);
+            });
+        } catch (e) { /* sin audio disponible */ }
+    }
+
+    function playAlertBeep() {
+        if (!ALERT_SOUND) { synthBeep(); return; }
+        try {
+            const audio = new Audio(ALERT_SOUND);
+            audio.volume = ALERT_VOLUME;
+            // El navegador puede negarse a sonar en una pestaña con la que no
+            // has interactuado; se calla en vez de lanzar, y el aviso visual
+            // sigue estando.
+            audio.play().catch(() => { });
+        } catch (e) { /* noop */ }
+    }
+
+    let beepTimer = null;
+
+    function startBeeping() {
+        if (beepTimer) return;
+        playAlertBeep();
+        beepTimer = setInterval(playAlertBeep, ALERT_BEEP_MS);
+    }
+
+    function stopBeeping() {
+        if (!beepTimer) return;
+        clearInterval(beepTimer);
+        beepTimer = null;
+    }
+
+    // El título se compone en UN SOLO SITIO y se rearma entero desde el
+    // original: si cada cosa lo escribiera por su cuenta, la que se pone a
+    // cero borraría la marca de la otra sin saber que existía.
+    const ORIGINAL_TITLE = document.title;
+
+    function paintTitle(pending) {
+        const want = pending > 0 ? '(' + nf.format(pending) + ') ' + ORIGINAL_TITLE : ORIGINAL_TITLE;
+        if (document.title !== want) document.title = want;
+    }
+
+    function readAlerts() {
+        const raw = recall(ALERT_KEY);
+        if (!raw) return [];
+        try {
+            const arr = JSON.parse(raw);
+            if (!Array.isArray(arr)) return [];
+            return arr.filter(a => a && typeof a.code === 'string');
+        } catch (e) { return []; }
+    }
+
+    function saveAlerts(list) {
+        const cut = Date.now() - ALERT_TTL_MS;
+        let out = list.filter(a => (a.found || 0) > cut);
+        if (out.length > ALERT_MAX_ENTRIES) {
+            // Se tiran las más viejas, no las últimas de la lista: el orden de
+            // guardado no tiene por qué ser el de antigüedad.
+            out = out.slice().sort((a, b) => (b.found || 0) - (a.found || 0)).slice(0, ALERT_MAX_ENTRIES);
+        }
+        store(ALERT_KEY, out.length ? JSON.stringify(out) : null);
+        return out;
+    }
+
+    function alertsOn() {
+        return recall(ALERT_ON_KEY) === '1'
+            && splitKeywords(readKeywords()).positive.length > 0;
+    }
+
+    function pendingAlerts() {
+        return readAlerts().filter(a => !a.seen);
+    }
+
+    function markAlertSeen(code) {
+        const list = readAlerts();
+        list.forEach(a => { if (code === null || a.code === code) a.seen = true; });
+        saveAlerts(list);
+        run();
+    }
+
+    // Solo una pestaña sondea, o con tres abiertas se pediría tres veces lo
+    // mismo. No hay comparar-y-cambiar en localStorage, así que esto es "lo
+    // mejor que se puede hacer": el dueño refresca su marca y el resto respeta
+    // la que no haya caducado. Si dos pestañas se pisaran en el mismo
+    // milisegundo, lo peor que pasa es una pasada de más.
+    function takeAlertLock() {
+        const now = Date.now();
+        let lock = null;
+        try { lock = JSON.parse(recall(ALERT_LOCK_KEY) || 'null'); } catch (e) { lock = null; }
+        if (lock && lock.tab !== TAB_ID && now - (lock.at || 0) < ALERT_LOCK_MS) return false;
+        store(ALERT_LOCK_KEY, JSON.stringify({ tab: TAB_ID, at: now }));
+        return true;
+    }
+
+    function holdAlertLock() {
+        store(ALERT_LOCK_KEY, JSON.stringify({ tab: TAB_ID, at: Date.now() }));
+    }
+
+    function dropAlertLock() {
+        let lock = null;
+        try { lock = JSON.parse(recall(ALERT_LOCK_KEY) || 'null'); } catch (e) { lock = null; }
+        if (lock && lock.tab === TAB_ID) store(ALERT_LOCK_KEY, null);
+    }
+
+    // El listado del sitio, desde la raíz y no desde la página que tengas
+    // delante: un aviso que dependiera de dónde estás parado avisaría de cosas
+    // distintas según la pestaña, y en el foro no avisaría de nada. La raíz es
+    // el listado completo, y como va con tu sesión respeta los filtros de tu
+    // cuenta —nivel, biblioteca, ya-entrados— igual que el botón de cargar.
+    //
+    // Se recorre ENTERO en cada pasada, que es lo que se pidió: la lista no
+    // está ordenada por fecha de creación, así que un sorteo nuevo puede
+    // aparecer en cualquier página y mirar solo las primeras se lo saltaría.
+    //
+    // Si la primera página no trajera ni una fila, no se inventa nada: se
+    // devuelve el fallo y el panel lo dice. Un aviso que calla porque no supo
+    // leer se parece demasiado a "no hay novedades".
+    function alertFeedUrl(page) {
+        const u = new URL('/', location.origin);
+        if (page > 1) u.searchParams.set('page', String(page));
+        return u.toString();
+    }
+
+    function rowRecord(row) {
+        const g = parseRow(row);
+        if (!g) return null;
+        const code = rowCode(row);
+        if (!code) return null;
+        const link = row.querySelector(SEL.name);
+        return {
+            code,
+            name: g.name,
+            href: link ? link.getAttribute('href') : '/giveaway/' + code,
+            points: g.points,
+            copies: g.copies,
+            entries: g.entries,
+            found: Date.now(),
+            seen: false,
+        };
+    }
+
+    // La pasada lee el listado entero de todas formas, así que dejar sus filas
+    // en la página no cuesta ni una petición más: es el mismo trabajo del botón
+    // de cargar a mano, gratis.
+    //
+    // Pero solo se inyecta si lo que tienes delante ES ese mismo listado: la
+    // portada, sin búsqueda ni filtros en la barra de direcciones. Si estás en
+    // `?q=doom`, meterle las filas del listado general convertiría una búsqueda
+    // en otra cosa sin avisar, y eso es peor que no cargar nada. En el foro ni
+    // se plantea, y en la ficha de un sorteo tampoco.
+    function canInjectHere() {
+        if (isSinglePage() || location.pathname !== '/') return false;
+        return !new URL(location.href).search;
+    }
+
+    let scanning = false;
+    let scanFailed = false;
+    // Una pasada tarda lo que tarda —una petición por página, con pausa—, así
+    // que es fácil pedir otra mientras la anterior está a medias: marcas la
+    // casilla, o pulsas el ⟳. Antes esa segunda petición se perdía en silencio y
+    // había que esperar al siguiente cuarto de hora; ahora se apunta y se
+    // atiende en cuanto la que está corriendo acaba.
+    let rescanWanted = false;
+
+    // Cada pasada recorre el listado completo y avisa de todo lo que casa con
+    // tus palabras y no estuviera ya en la lista. Ese "ya estaba" es lo único
+    // que evita el aviso repetido, y es lo que hace que marcar algo como visto
+    // lo calle para siempre.
+    //
+    // La parada es la misma que la del botón de cargar a mano, y por el mismo
+    // motivo: se para cuando una página no trae ni un código que no se haya
+    // visto YA EN ESTA PASADA. Así funciona igual si el listado tiene tres
+    // páginas o veinte, si el sitio ignora el parámetro y devuelve siempre la
+    // misma, o si mañana cambia su paginación.
+    //
+    // Hubo aquí un recorrido corto —guardar el sorteo más nuevo de la pasada
+    // anterior y parar al reencontrarlo— y se quitó a petición del usuario: la
+    // lista de SteamGifts no va por fecha de creación, así que un sorteo nuevo
+    // puede caer en cualquier página y pararse pronto se lo salta. Cuesta una
+    // petición por página cada cuarto de hora, y eso está dicho en el aviso de
+    // la casilla, en el modal y en el README.
+    async function scanForAlerts() {
+        if (scanning) { rescanWanted = true; return; }
+        scanning = true;
+        scanFailed = false;
+        run();
+        const kws = readKeywords();
+        const already = new Set(readAlerts().map(a => a.code));
+        const seenNow = new Set();
+        const fresh = [];
+        // Lo que YA está en la página, para no duplicar filas al inyectar.
+        const inject = canInjectHere();
+        const inPage = new Set();
+        if (inject) {
+            plainRows(document).forEach(r => {
+                const code = rowCode(r);
+                if (code) inPage.add(code);
+            });
+        }
+        let added = 0;
+        let pagesDone = 0;
+        let rowsSeen = 0;
+        let more = true;
+        try {
+            for (let page = 1; page <= ALERT_MAX_PAGES; page++) {
+                if (page > 1) await sleep(LOAD_DELAY_MS);
+                holdAlertLock();
+                let doc;
+                try {
+                    const res = await fetch(alertFeedUrl(page), { credentials: 'same-origin' });
+                    if (!res.ok) throw new Error(String(res.status));
+                    doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+                } catch (e) {
+                    scanFailed = true;
+                    break;
+                }
+                const rows = plainRows(doc);
+                rowsSeen += rows.length;
+
+                // El ancla se rebusca en CADA página y no se arrastra de la
+                // anterior: si el listado está ordenado por valor, entre una
+                // página y la siguiente las filas se han movido de sitio.
+                const here = inject ? plainRows(document) : [];
+                let anchor = here[here.length - 1] || null;
+
+                let unknown = 0;
+                for (const row of rows) {
+                    const rec = rowRecord(row);
+                    if (!rec || seenNow.has(rec.code)) continue;
+                    seenNow.add(rec.code);
+                    unknown++;
+                    if (inject && anchor && anchor.parentNode && !inPage.has(rec.code)) {
+                        inPage.add(rec.code);
+                        const node = document.importNode(row, true);
+                        anchor.parentNode.insertBefore(node, anchor.nextSibling);
+                        anchor = node;
+                        added++;
+                    }
+                    if (already.has(rec.code)) continue;
+                    if (matchesKeywords(rec.name, kws)) fresh.push(rec);
+                }
+                pagesDone++;
+                // Ni un código que no estuviera ya en esta pasada: se acabó el
+                // listado, o el sitio devolvió otra vez la misma página.
+                if (!unknown) { more = false; break; }
+            }
+            if (!rowsSeen) scanFailed = true;
+            if (fresh.length) saveAlerts(readAlerts().concat(fresh));
+            // La hora se apunta también cuando falla: si no, un endpoint roto se
+            // reintentaría cada minuto en vez de cada cuarto de hora.
+            store(ALERT_LAST_KEY, String(Date.now()));
+
+            // Las filas inyectadas cuentan igual que las del botón: comparten
+            // el mismo estado, así que la paginación del sitio se pliega por el
+            // mismo camino y el widget no lleva dos cuentas distintas de lo
+            // mismo.
+            if (added) {
+                if (!loadState) {
+                    loadState = { running: false, stop: false, pages: 0, added: 0, note: '', exhausted: false, from: 1 };
+                }
+                loadState.pages += Math.max(0, pagesDone - 1);
+                loadState.added += added;
+                loadState.exhausted = !scanFailed && !more;
+                loadState.note = tn(loadState.pages, 'loadDone', {
+                    pages: nf.format(loadState.pages), n: nf.format(loadState.added),
+                });
+            }
+        } finally {
+            scanning = false;
+            dropAlertLock();
+            run();
+            if (rescanWanted) {
+                rescanWanted = false;
+                maybeScanForAlerts(true);
+            }
+        }
+    }
+
+    // `force` salta el cuarto de hora, y lo usan las tres cosas que NO son el
+    // reloj: cargar la página, marcar la casilla y el ⟳. El cuarto de hora
+    // gobierna solo al reloj; al abrir o navegar a una página se revisa
+    // siempre, porque es entonces cuando hay un listado delante que llenar y
+    // cuando quieres saber si apareció algo mientras no mirabas.
+    //
+    // El turno entre pestañas se respeta en los DOS casos, y es el único freno
+    // que queda: sin él, ir pinchando enlaces por el sitio lanzaría un
+    // recorrido completo por cada navegación. Con él, mientras haya uno en
+    // vuelo —suyo o de otra pestaña— la siguiente carga no pide nada.
+    function maybeScanForAlerts(force) {
+        if (!alertsOn()) return;
+        // Con una pasada en marcha, la petición NO se tira: se apunta y se
+        // atiende al acabar. Aquí estaba el escape que la perdía.
+        if (scanning) { rescanWanted = true; return; }
+        if (!force) {
+            const last = parseInt(recall(ALERT_LAST_KEY), 10) || 0;
+            if (Date.now() - last < ALERT_EVERY_MS) return;
+        }
+        if (!takeAlertLock()) return;
+        scanForAlerts();
+    }
+
+    // ------------------------------------------------------------------
     // Widget
     // ------------------------------------------------------------------
     function levelLine(acc) {
@@ -846,6 +1251,66 @@
         holesRow.appendChild(el('span', null, t('holes')));
         holesRow.title = t('holesTip');
         body.appendChild(holesRow);
+    }
+
+    // Misma forma que las otras dos casillas, y por el mismo motivo se queda
+    // inerte en vez de irse cuando no hay palabras: sin ninguna no hay de qué
+    // avisar, y una casilla que desaparece mueve de sitio todo lo de debajo.
+    function buildAlertsCheck(host, enabled) {
+        const row = el('label', 'sgpv-w__check' + (enabled ? '' : ' sgpv-w__check--off'));
+        const box = el('input');
+        box.type = 'checkbox';
+        box.checked = recall(ALERT_ON_KEY) === '1';
+        box.disabled = !enabled;
+        box.addEventListener('change', () => {
+            store(ALERT_ON_KEY, box.checked ? '1' : null);
+            // Encender Y apagar borran los avisos: el interruptor es el borrón y
+            // cuenta nueva. Así, al volver a encenderla, la primera pasada avisa
+            // de todo lo que casa —incluido lo que ya habías marcado antes—, que
+            // es lo que se espera de empezar de cero.
+            store(ALERT_KEY, null);
+            store(ALERT_LAST_KEY, null);
+            run();
+            // Y se revisa YA, sin esperar el cuarto de hora: quien acaba de
+            // marcarla quiere saber qué hay ahora, no dentro de quince minutos.
+            maybeScanForAlerts(true);
+        });
+        row.appendChild(box);
+        row.appendChild(el('span', null, t('alerts')));
+        row.title = enabled
+            ? t('alertsTip', {
+                mins: nf.format(Math.round(ALERT_EVERY_MS / 60000)),
+                beep: nf.format(Math.round(ALERT_BEEP_MS / 1000)),
+                max: nf.format(ALERT_MAX_PAGES),
+                delay: nf.format(Math.round(LOAD_DELAY_MS / 100) / 10),
+            })
+            : t('alertsNeeds');
+        host.appendChild(row);
+
+        // Estado del sondeo, solo con la casilla puesta: sin él no hay forma de
+        // saber si esto vive. La hora es más útil que un «hace 3 min» que
+        // habría que refrescar.
+        if (!enabled || recall(ALERT_ON_KEY) !== '1') return;
+        const last = parseInt(recall(ALERT_LAST_KEY), 10) || 0;
+        let text = t('alertsScanning');
+        if (!scanning) {
+            const when = last ? new Date(last).toLocaleTimeString(LANG === 'es' ? 'es' : 'en') : '';
+            text = scanFailed ? '⚠ ' + t('alertsFail')
+                : (last ? t(pendingAlerts().length ? 'alertsLast' : 'alertsQuiet', { time: when })
+                    : t('alertsScanning'));
+        }
+        const line = el('div', 'sgpv-w__line sgpv-w__line--small');
+        if (scanFailed && !scanning) line.classList.add('sgpv-w__line--short');
+        const label = el('span', null, text);
+        label.title = t('alertsFirstClick');
+        line.appendChild(label);
+        const now = el('button', 'sgpv-w__now', '⟳');
+        now.type = 'button';
+        now.title = t('alertsNow');
+        now.disabled = scanning;
+        now.addEventListener('click', () => maybeScanForAlerts(true));
+        line.appendChild(now);
+        host.appendChild(line);
     }
 
     function buildOnlyCheck(host, enabled) {
@@ -1161,6 +1626,9 @@
             buildOnlyCheck(body, splitKeywords(readKeywords()).positive.length > 0);
             buildHolesCheck(body);
         }
+        // Esta sí va también en la ficha de un sorteo: los avisos no son del
+        // listado que tengas delante, son de lo que aparece en el sitio.
+        buildAlertsCheck(body, splitKeywords(readKeywords()).positive.length > 0);
 
         const langRow = el('div', 'sgpv-w__lang');
         langRow.title = t('langTip');
@@ -1210,9 +1678,40 @@
 
     function buildMatchesPanel(list, solo) {
         const old = document.getElementById(MATCH_ID);
-        const hits = solo ? [] : list.filter(g => g.kw && g.row.isConnected);
-        if (!hits.length) {
+        const alerts = alertsOn() ? pendingAlerts() : [];
+
+        // Las coincidencias que están EN la página, por su código: es lo que
+        // permite cruzarlas con los avisos y no listar dos veces el mismo
+        // sorteo cuando la revisión acaba de dejarlo cargado aquí.
+        const here = new Map();
+        if (!solo) {
+            list.filter(g => g.kw && g.row.isConnected).forEach(g => {
+                const code = rowCode(g.row);
+                if (code && !here.has(code)) here.set(code, g);
+            });
+        }
+
+        // Los avisos van PRIMERO, del más nuevo al más viejo: es lo que acaba
+        // de aparecer, y enterrarlo en medio de treinta coincidencias sería
+        // esconderlo. Detrás, el resto de las coincidencias en el orden de la
+        // página, que es como se leen.
+        const items = [];
+        const listed = new Set();
+        alerts.slice().sort((a, b) => (b.found || 0) - (a.found || 0)).forEach(a => {
+            listed.add(a.code);
+            const g = here.get(a.code) || null;
+            items.push({ g, alert: a, name: a.name, num: g || derive(a.points, a.copies, a.entries) });
+        });
+        here.forEach((g, code) => {
+            if (listed.has(code)) return;
+            items.push({ g, alert: null, name: g.name, num: g });
+        });
+
+        const show = items.length || (alertsOn() && scanFailed);
+        if (!show) {
             if (old) old.remove();
+            paintTitle(0);
+            stopBeeping();
             return null;
         }
 
@@ -1227,19 +1726,29 @@
         panel.classList.toggle('sgpv-m--right', recall(SIDE_KEY) === 'l');
 
         // Se pliega igual que el widget, y por el mismo motivo: los dos están
-        // fijos y tapan una columna del listado. La diferencia es que aquí la
-        // cuenta se queda VISIBLE al plegar —es el dato que hace falta de un
-        // vistazo—, así que la cabecera sigue diciendo «Tus coincidencias 7»
-        // con la lista recogida.
+        // fijos y tapan una columna del listado. La diferencia es que aquí las
+        // cuentas se quedan VISIBLES al plegar —son el dato que hace falta de
+        // un vistazo—, así que la cabecera sigue diciendo «7 · 🔔 2» con la
+        // lista recogida.
         panel.classList.toggle('sgpv-m--min', recall(MMIN_KEY) === '1');
 
         const head = el('div', 'sgpv-m__head');
         head.appendChild(el('span', 'sgpv-m__title', t('matches')));
-        head.title = t('matchesTip');
-        // La cuenta y el botón en su propio grupo: con `space-between` y tres
-        // hijos sueltos, la cuenta se quedaba flotando en el centro.
+        head.title = alerts.length ? t('matchesAlertTip') : t('matchesTip');
         const side = el('span', 'sgpv-m__side');
-        side.appendChild(el('span', 'sgpv-m__count', nf.format(hits.length)));
+        side.appendChild(el('span', 'sgpv-m__count', nf.format(items.length)));
+        if (alerts.length) {
+            // La campana con su cuenta, aparte del total: "de estos siete, dos
+            // son nuevos" es una frase distinta de "hay siete".
+            const bell = el('span', 'sgpv-m__bell', '🔔 ' + nf.format(alerts.length));
+            bell.title = t('alertsCount', { n: nf.format(alerts.length) });
+            side.appendChild(bell);
+            const all = el('button', 'sgpv-m__eye', '👁️');
+            all.type = 'button';
+            all.title = t('alertsSeenAll');
+            all.addEventListener('click', () => markAlertSeen(null));
+            side.appendChild(all);
+        }
         const min = el('button', 'sgpv-m__min', recall(MMIN_KEY) === '1' ? '+' : '–');
         min.type = 'button';
         min.title = t('minimise');
@@ -1254,16 +1763,44 @@
         panel.appendChild(head);
 
         const body = el('div', 'sgpv-m__body');
-        hits.forEach(g => {
-            const item = el('button', 'sgpv-m__item');
-            item.type = 'button';
-            item.title = t('jumpTip');
-            item.appendChild(el('span', 'sgpv-m__name', g.name));
-            item.appendChild(el('span', 'sgpv-m__val', fmtOdds(g) + ' · ' + fmtPerPoint(g)));
-            item.addEventListener('click', () => jumpTo(g));
+        if (alertsOn() && scanFailed) body.appendChild(el('div', 'sgpv-m__fail', '⚠ ' + t('alertsFail')));
+        items.forEach(it => {
+            const item = el('div', 'sgpv-m__item' + (it.alert ? ' sgpv-m__item--new' : ''));
+
+            // NUNCA un enlace al sorteo, y es una decisión del usuario: para
+            // abrirlo ya está la propia fila del listado, que es donde se
+            // pulsa normalmente. Aquí el clic solo SALTA a esa fila; y si el
+            // sorteo no está en esta página —el foro, o una búsqueda, donde la
+            // revisión no inyecta nada— no hay a dónde saltar y el elemento se
+            // queda quieto en vez de llevarte a ninguna parte.
+            const go = el(it.g ? 'button' : 'div', 'sgpv-m__go');
+            if (it.g) {
+                go.type = 'button';
+                go.title = t('jumpTip');
+                go.addEventListener('click', () => jumpTo(it.g));
+            } else {
+                go.title = t('alertsElsewhere');
+                go.classList.add('sgpv-m__go--flat');
+            }
+            go.appendChild(el('span', 'sgpv-m__name', (it.alert ? '🔔 ' : '') + it.name));
+            go.appendChild(el('span', 'sgpv-m__val', fmtOdds(it.num) + ' · ' + fmtPerPoint(it.num)));
+            item.appendChild(go);
+
+            if (it.alert) {
+                const eye = el('button', 'sgpv-m__eye', '👁️');
+                eye.type = 'button';
+                eye.title = t('alertsSeenOne');
+                eye.addEventListener('click', () => markAlertSeen(it.alert.code));
+                item.appendChild(eye);
+            }
             body.appendChild(item);
         });
         panel.appendChild(body);
+
+        paintTitle(alerts.length);
+        // El bucle está atado a que HAYA avisos sin marcar, así que se apaga
+        // solo en cuanto marcas el último: no hay que pararlo desde cada botón.
+        if (alerts.length) startBeeping(); else stopBeeping();
         return panel;
     }
 
@@ -1649,6 +2186,16 @@
             // verse encima de los dos.
             '.' + JUMP_CLASS + ' > .giveaway__row-inner-wrap{outline:3px solid #9fb4e8;',
             'outline-offset:-3px;}',
+            '#' + WIDGET_ID + ' .sgpv-w__line--small{font-size:11px;color:#9aa4b2;display:flex;',
+            'align-items:center;justify-content:space-between;gap:6px;}',
+            '#' + WIDGET_ID + ' .sgpv-w__line--small > span{cursor:help;}',
+            '#' + WIDGET_ID + ' .sgpv-w__now{flex:0 0 auto;cursor:pointer;background:transparent;',
+            'border:0;color:#9fb4e8;font:inherit;font-size:13px;line-height:1;padding:0 2px;}',
+            '#' + WIDGET_ID + ' .sgpv-w__now:hover:not(:disabled){color:#fff;}',
+            '#' + WIDGET_ID + ' .sgpv-w__now:disabled{opacity:.4;cursor:default;}',
+            // Vuelve a poder ocupar el alto entero: los avisos viven aquí
+            // dentro, así que ya no hay un segundo panel con el que repartirse
+            // este lado de la pantalla.
             '#' + MATCH_ID + '{position:fixed;left:16px;bottom:16px;z-index:9998;width:222px;',
             'max-height:calc(100vh - 32px);display:flex;flex-direction:column;',
             'background:#2f3947;color:#e6e9ee;border:1px solid #1d2530;border-radius:6px;',
@@ -1666,10 +2213,27 @@
             '#' + MATCH_ID + '.sgpv-m--min .sgpv-m__body{display:none;}',
             '#' + MATCH_ID + ' .sgpv-m__body{overflow-y:auto;min-height:0;padding:6px;',
             'overscroll-behavior:contain;}',
-            '#' + MATCH_ID + ' .sgpv-m__item{display:block;width:100%;text-align:left;',
-            'font:inherit;cursor:pointer;padding:4px 6px;margin:0 0 3px;border-radius:4px;',
-            'border:1px solid transparent;background:transparent;color:#e6e9ee;}',
+            '#' + MATCH_ID + ' .sgpv-m__bell{font-weight:700;color:#ffcf66;white-space:nowrap;',
+            'cursor:help;}',
+            '#' + MATCH_ID + ' .sgpv-m__eye{flex:0 0 auto;cursor:pointer;background:transparent;',
+            'border:0;color:#9aa4b2;font-size:13px;line-height:1;padding:0 3px;}',
+            '#' + MATCH_ID + ' .sgpv-m__eye:hover{color:#fff;}',
+            '#' + MATCH_ID + ' .sgpv-m__fail{color:#e29a9a;padding:2px 4px 6px;}',
+            // El item es la fila: dentro, la zona que salta y —si es un aviso—
+            // el ojo que lo marca. Dos botones hermanos, no uno dentro de otro.
+            '#' + MATCH_ID + ' .sgpv-m__item{display:flex;align-items:center;gap:2px;',
+            'padding:2px 3px;margin:0 0 3px;border-radius:4px;',
+            'border:1px solid transparent;background:transparent;}',
             '#' + MATCH_ID + ' .sgpv-m__item:hover{background:#3a4655;border-color:#4b72d4;}',
+            '#' + MATCH_ID + ' .sgpv-m__item--new{background:#39322a;border-color:#5a4a2c;}',
+            '#' + MATCH_ID + ' .sgpv-m__item--new:hover{background:#4a4132;border-color:#e0a92e;}',
+            '#' + MATCH_ID + ' .sgpv-m__go{flex:1 1 auto;min-width:0;display:block;',
+            'text-align:left;font:inherit;cursor:pointer;padding:2px 3px;border:0;',
+            'background:transparent;color:#e6e9ee;}',
+            // El que no puede saltar a ninguna parte no finge que se puede
+            // pulsar: ni cursor de mano ni foco.
+            '#' + MATCH_ID + ' .sgpv-m__go--flat{cursor:help;}',
+            '#' + MATCH_ID + ' .sgpv-m__item--new .sgpv-m__name{color:#ffe9b0;}',
             '#' + MATCH_ID + ' .sgpv-m__name{display:block;font-weight:600;',
             // El nombre completo en una línea: partirlo haría que el panel
             // cambiara de alto según los juegos que toquen ese día.
@@ -1999,6 +2563,17 @@
 
     function boot() {
         run();
+        // El reloj de los avisos arranca ANTES del corte por tipo de página, y
+        // a propósito: los avisos no son del listado, son del sitio. Con la
+        // casilla puesta tienen que sonar igual estando en el foro o en los
+        // ajustes, que es justo donde no te enterarías por tu cuenta.
+        //
+        // El tic del reloj va sin forzar —ahí sí manda el cuarto de hora—, pero
+        // la revisión de la CARGA fuerza: acabas de llegar a esta página, así
+        // que se llena el listado y se comprueba si apareció algo, sin importar
+        // cuándo fue la última pasada.
+        setInterval(() => maybeScanForAlerts(), ALERT_TICK_MS);
+        maybeScanForAlerts(true);
         if (!isGiveawayPage()) return;
         if (isSinglePage()) return watchSingle();
         // El listado se repinta cuando otro script inserta filas (scroll
