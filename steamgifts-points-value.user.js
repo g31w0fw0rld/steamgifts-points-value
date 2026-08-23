@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamGifts Points Value (odds & cost per giveaway)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.0
+// @version      1.2.1
 // @description  Works out the real odds of every open SteamGifts giveaway — copies against entries, not the entry count alone — and what those odds cost you in points, so you can see where your balance is worth spending. Adds odds and value per point to each row and to the giveaway page, sorts the listing by value, and shows a widget with your balance, your level and how far the next one is. Filtering by level, library or already-entered is left to the site's own settings, which do it server-side.
 // @match        https://www.steamgifts.com/*
 // @author       g31w0fw0rld
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.2.0';
+    const SCRIPT_VERSION = '1.2.1';
 
     // ------------------------------------------------------------------
     // i18n
@@ -77,8 +77,9 @@
             auto: 'Auto',
             minimise: 'Minimise',
             holes: 'Hide empty gaps',
-            kwPlaceholder: 'keyword, -keyword, several, at once',
-            kwHint: 'Enter to add — commas separate several at once · click a keyword to search the site for it · × removes it',
+            kwPlaceholder: 'keyword, -keyword, several',
+            kwHint: 'Enter or + to add — commas separate several at once · click a keyword to search the site for it · × removes it',
+            kwAddTip: 'Adds what you typed. Same as pressing Enter, which is there for the keyboards that do not send one: on a phone the return key is the keyboard\u2019s to draw, not the page\u2019s.',
             kwCount: '{n} match your keywords',
             kwCountOne: '1 match for your keywords',
             kwNone: 'nothing matches your keywords',
@@ -198,8 +199,9 @@
             auto: 'Automático',
             minimise: 'Minimizar',
             holes: 'Ocultar huecos vacíos',
-            kwPlaceholder: 'palabra, -palabra, varias, de una vez',
-            kwHint: 'Intro para añadir —las comas separan varias de una vez— · pulsa una palabra para buscarla en el sitio · × la quita',
+            kwPlaceholder: 'palabra, -palabra, varias',
+            kwHint: 'Intro o + para añadir —las comas separan varias de una vez— · pulsa una palabra para buscarla en el sitio · × la quita',
+            kwAddTip: 'Añade lo que has escrito. Es lo mismo que pulsar Intro, y está aquí por los teclados que no mandan ninguno: en el móvil, la tecla de envío la pinta el teclado, no la página.',
             kwCount: '{n} coinciden con tus palabras',
             kwCountOne: '1 coincide con tus palabras',
             kwNone: 'nada coincide con tus palabras',
@@ -1558,13 +1560,33 @@
         // Palabras clave: la caja añade, los chips buscan y la × quita.
         const kws = readKeywords();
         const kwWrap = el('div', 'sgpv-w__kw');
+        // Un <form> de verdad, y no un keydown sobre el input suelto: en el
+        // móvil, el Intro que ese keydown esperaba muchas veces no llega. El
+        // teclado virtual no enseña una tecla de envío salvo que el campo
+        // esté dentro de un formulario —y entonces la pinta como "Ir"—, así
+        // que la caja se quedaba sin ninguna forma de añadir. El formulario
+        // resuelve las dos: el envío implícito cubre el Intro del escritorio
+        // y le da al teclado del móvil su tecla. Y aun así va con botón +
+        // visible, porque el teclado es cosa del sistema y no de la página:
+        // esa tecla depende del teclado instalado y no siempre aparece.
+        const kwForm = el('form', 'sgpv-w__kw-form');
         const kwInput = el('input');
         kwInput.type = 'text';
         kwInput.className = 'sgpv-w__kw-input';
         kwInput.placeholder = t('kwPlaceholder');
         kwInput.title = t('kwHint');
-        kwInput.addEventListener('keydown', ev => {
-            if (ev.key !== 'Enter') return;
+        // Nombres de juego: el autocorrector y la mayúscula automática del
+        // móvil los estropean, y "-doom" en negativa depende de un guión que
+        // el corrector puede cambiar por una raya.
+        kwInput.autocomplete = 'off';
+        kwInput.spellcheck = false;
+        kwInput.setAttribute('autocapitalize', 'none');
+        kwInput.setAttribute('autocorrect', 'off');
+        kwInput.setAttribute('enterkeyhint', 'done');
+        const kwAdd = el('button', 'sgpv-w__kw-add', '+');
+        kwAdd.type = 'submit';
+        kwAdd.title = t('kwAddTip');
+        kwForm.addEventListener('submit', ev => {
             ev.preventDefault();
             // Las comas separan: pegar "doom, fallout, -eternal" añade tres.
             const parts = kwInput.value.split(',').map(v => v.trim()).filter(Boolean);
@@ -1577,7 +1599,9 @@
             kwInput.value = '';
             run();
         });
-        kwWrap.appendChild(kwInput);
+        kwForm.appendChild(kwInput);
+        kwForm.appendChild(kwAdd);
+        kwWrap.appendChild(kwForm);
 
         if (kws.length) {
             const chips = el('div', 'sgpv-w__chips');
@@ -2340,10 +2364,27 @@
             '#' + TIP_ID + '.sgpv-tip--on{opacity:1;}',
             '.' + BADGE_CLASS + '[' + TIP_STASH + ']{cursor:help;}',
             '#' + WIDGET_ID + ' .sgpv-w__kw{margin-top:10px;}',
-            '#' + WIDGET_ID + ' .sgpv-w__kw-input{width:100%;box-sizing:border-box;font:inherit;',
-            'padding:4px 7px;border-radius:4px;border:1px solid #4a5568;background:#1f2733;',
-            'color:#e6e9ee;}',
+            // El sitio le pone float y position a sus inputs —por eso la
+            // casilla de abajo ya los desandaba—, y ahora que la caja vive en
+            // una fila flex eso la sacaría de sitio. El width:100% se queda
+            // junto al flex: sin él, un ancho fijo del sitio mandaría sobre
+            // la base y la caja se saldría del widget.
+            '#' + WIDGET_ID + ' .sgpv-w__kw-form{display:flex;align-items:stretch;gap:4px;',
+            'margin:0;padding:0;}',
+            '#' + WIDGET_ID + ' .sgpv-w__kw-input{flex:1 1 auto;width:100%;min-width:0;',
+            'box-sizing:border-box;float:none;position:static;',
+            'font:inherit;padding:4px 7px;border-radius:4px;border:1px solid #4a5568;',
+            'background:#1f2733;color:#e6e9ee;}',
             '#' + WIDGET_ID + ' .sgpv-w__kw-input::placeholder{color:#7d8899;}',
+            // El botón no se encoge y mantiene un ancho de dedo: es el único
+            // camino que queda cuando el teclado del móvil no trae envío.
+            // Se come 34 px de la caja (226 -> 192, y 176 de texto), que es
+            // justo lo que obligó a acortar el placeholder: el largo medía
+            // 195 px y se cortaba. Lo que quepa ahí se mide, no se supone.
+            '#' + WIDGET_ID + ' .sgpv-w__kw-add{flex:0 0 auto;min-width:30px;cursor:pointer;',
+            'font:inherit;font-size:15px;line-height:1;padding:0 8px;border-radius:4px;',
+            'border:1px solid #4a5568;background:#1f2733;color:#cfd6e0;}',
+            '#' + WIDGET_ID + ' .sgpv-w__kw-add:hover{color:#fff;border-color:#7d8899;}',
             '#' + WIDGET_ID + ' .sgpv-w__chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;',
             'max-height:104px;overflow-y:auto;overscroll-behavior:contain;}',
             '#' + WIDGET_ID + ' .sgpv-w__chip{display:inline-flex;align-items:center;gap:3px;',
