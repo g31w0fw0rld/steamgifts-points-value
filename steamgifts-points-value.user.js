@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         SteamGifts Points Value (odds & cost per giveaway)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.1
+// @version      1.2.2
 // @description  Works out the real odds of every open SteamGifts giveaway — copies against entries, not the entry count alone — and what those odds cost you in points, so you can see where your balance is worth spending. Adds odds and value per point to each row and to the giveaway page, sorts the listing by value, and shows a widget with your balance, your level and how far the next one is. Filtering by level, library or already-entered is left to the site's own settings, which do it server-side.
+// @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAMKADAAQAAAABAAAAMAAAAADbN2wMAAACK0lEQVRoBe1ayUoDQRRMXC8uUYzgggi5iooXLwG/Qv/Bg1cFBf0H8SvyDRERvAgejHdBQT1ExfWgImpVSGQykOlKSHemYR5UZsnjVVX3ZDrT0+lUfWRxOA/kgCVgFRgFOhkPIC8A58AlUAIegbroxdEecAf8xhw30LcNdAP/sYu9uAsP69uqqR/DTtlDA7fQnOnCxyLAa9+3mITgORqY9U15QG+OBpYDJ3zbHU9D8Qsw5Jvyqt4Ce8BX8fSQ7ak6aWZzjeQT4ALgnYA9+An8AM0EG68fyABTAAfQPDADqFHhDN9fGx1/oOomMKJWbyGPo/4O8AU00hE8XyRH8ETUPsW7CnVglQ3wshl0pR487GXlb02R16ESx0h6UxLblPOEOvydGUM1UDJWan+CxKkaYHe6DolTNfDuWj34JE7VAG9rrkPiVA18u1YPPolTNdAB/ZXxycgbZwNG8UxIDEjNZDEp6QGLjSuVTnpAaiaLSUkPWGxcqXSce4AzJsZQDbTy8G8kNyRInKqBPgOZja8lTtXAgA2FhpoSp2qAE6muQ+JUDSy4Vg8+iVM1sIKCrqdV8kqjqQY43beuFGxTzgbqTKi1ombjgt/FcmqRgwVFNhOcpWvn5O4w6k0DrUzuHrZioBmztnOP+Bt4tc1isf49DfAlsq9xRgOnvqqH7jINXHlsgEsPUt6/6OZiigMPe2Efmp9rur1d7BF+6gkvt1mDQ5sv9WoNGLWNXG7zB+tQbrTPTOPxAAAAAElFTkSuQmCC
 // @match        https://www.steamgifts.com/*
 // @author       g31w0fw0rld
 // @license      MIT
@@ -14,7 +15,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.2.1';
+    const SCRIPT_VERSION = '1.2.2';
 
     // ------------------------------------------------------------------
     // i18n
@@ -594,15 +595,38 @@
         return { positive, negative };
     }
 
+    // Las tildes no cuentan al comparar, por el mismo motivo que no cuentan las
+    // mayúsculas: son ortografía del título, no parte de lo que se quiso filtrar.
+    // SteamGifts escribe el nombre tal como lo publica cada quien, así que la
+    // misma palabra aparece de las dos formas —«Pokémon» y «Pokemon», «Ōkami» y
+    // «Okami»— y una palabra clave casaba con unos sorteos y no con otros sin
+    // nada visible que lo explicara. Mismo helper que en los dos scripts de
+    // drops, y por el mismo motivo.
+    //
+    // Solo TILDES DE VOCALES. La ñ no se toca: «ñ» y «n» son letras distintas y
+    // verlas casar sería raro, mientras que «Pokemon» es «Pokémon» mal copiado.
+    // NFD separa la letra de su tilde, el rango U+0300-U+036F son las tildes ya
+    // sueltas, y se recompone al salir (NFC) para devolver la cadena de entrada
+    // menos las tildes de vocales y nada más: sin ese paso el hangul se queda
+    // descompuesto y la cadena crece.
+    //
+    // Se aplica solo al comparar, nunca al guardar ni al mostrar: la palabra se
+    // almacena tal como se escribió, el chip la enseña con su tilde y su enlace
+    // busca en SteamGifts ese mismo texto.
+    function foldAccents(s) {
+        return String(s == null ? '' : s).normalize('NFD')
+            .replace(/([aeiouAEIOU])[\u0300-\u036f]+/g, '$1').normalize('NFC');
+    }
+
     // Casa si toca al menos una positiva Y ninguna negativa. La negativa manda
     // a propósito: "yakuza" pero no "yakuza kiwami" solo sirve si gana lo
     // segundo.
     function matchesKeywords(text, list) {
         const { positive, negative } = splitKeywords(list);
         if (!positive.length) return false;
-        const hay = String(text).toLowerCase();
-        if (negative.some(k => hay.includes(k))) return false;
-        return positive.some(k => hay.includes(k));
+        const hay = foldAccents(String(text).toLowerCase());
+        if (negative.some(k => hay.includes(foldAccents(k)))) return false;
+        return positive.some(k => hay.includes(foldAccents(k)));
     }
 
     // ------------------------------------------------------------------
@@ -1593,7 +1617,9 @@
             if (!parts.length) return;
             const next = readKeywords();
             parts.forEach(value => {
-                if (!next.some(k => k.toLowerCase() === value.toLowerCase())) next.push(value);
+                // Y sin tildes, porque ya son el MISMO filtro: teniendo "pokemon",
+                // añadir "pokémon" solo dejaría dos chips que casan lo mismo.
+                if (!next.some(k => foldAccents(k.toLowerCase()) === foldAccents(value.toLowerCase()))) next.push(value);
             });
             saveKeywords(next);
             kwInput.value = '';
