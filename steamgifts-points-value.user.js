@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamGifts Points Value (odds & cost per giveaway)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.2
+// @version      1.3.0
 // @description  Works out the real odds of every open SteamGifts giveaway — copies against entries, not the entry count alone — and what those odds cost you in points, so you can see where your balance is worth spending. Adds odds and value per point to each row and to the giveaway page, sorts the listing by value, and shows a widget with your balance, your level and how far the next one is. Filtering by level, library or already-entered is left to the site's own settings, which do it server-side.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAMKADAAQAAAABAAAAMAAAAADbN2wMAAACK0lEQVRoBe1ayUoDQRRMXC8uUYzgggi5iooXLwG/Qv/Bg1cFBf0H8SvyDRERvAgejHdBQT1ExfWgImpVSGQykOlKSHemYR5UZsnjVVX3ZDrT0+lUfWRxOA/kgCVgFRgFOhkPIC8A58AlUAIegbroxdEecAf8xhw30LcNdAP/sYu9uAsP69uqqR/DTtlDA7fQnOnCxyLAa9+3mITgORqY9U15QG+OBpYDJ3zbHU9D8Qsw5Jvyqt4Ce8BX8fSQ7ak6aWZzjeQT4ALgnYA9+An8AM0EG68fyABTAAfQPDADqFHhDN9fGx1/oOomMKJWbyGPo/4O8AU00hE8XyRH8ETUPsW7CnVglQ3wshl0pR487GXlb02R16ESx0h6UxLblPOEOvydGUM1UDJWan+CxKkaYHe6DolTNfDuWj34JE7VAG9rrkPiVA18u1YPPolTNdAB/ZXxycgbZwNG8UxIDEjNZDEp6QGLjSuVTnpAaiaLSUkPWGxcqXSce4AzJsZQDbTy8G8kNyRInKqBPgOZja8lTtXAgA2FhpoSp2qAE6muQ+JUDSy4Vg8+iVM1sIKCrqdV8kqjqQY43beuFGxTzgbqTKi1ombjgt/FcmqRgwVFNhOcpWvn5O4w6k0DrUzuHrZioBmztnOP+Bt4tc1isf49DfAlsq9xRgOnvqqH7jINXHlsgEsPUt6/6OZiigMPe2Efmp9rur1d7BF+6gkvt1mDQ5sv9WoNGLWNXG7zB+tQbrTPTOPxAAAAAElFTkSuQmCC
 // @match        https://www.steamgifts.com/*
@@ -15,7 +15,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.2.2';
+    const SCRIPT_VERSION = '1.3.0';
 
     // ------------------------------------------------------------------
     // i18n
@@ -118,10 +118,11 @@
                 'The one view that does cut anything is "show matches only", and it cuts by your own keyword list, which the site knows nothing about. Nothing is removed: the rows stay on the page with their badges and their place in the order, and unticking it brings them all back.',
                 'And when anything matches, a second panel appears on the other side listing those giveaways. Click one to jump to it: with twenty pages loaded, that is the difference between finding your three and scrolling for them.',
                 'And a checkbox turns those keywords into alerts: every 15 minutes it reads the whole giveaway listing, page by page, and flags every giveaway matching them in the matches panel —with a bell, a count and a beep— on whatever page of SteamGifts you have open —the forum included, which is where you would not notice on your own—. Having read those pages, it leaves them loaded in the listing too when you are on the front page with nothing filtered, which is the same thing the load button does, for free. It beeps every 5 seconds until you mark it as seen —right there in the panel—, and what you marked never alerts again. It runs that whole pass on every page you open too, not only every 15 minutes, and those do not reset the clock: the loop counts from its own last pass, so it fires on time however much you reload. Ticking or unticking it clears the alerts and checks straight away. There are no desktop notifications on purpose: the alert lives in this tab, and asking for notification permission is not something you can undo from here.',
+                'And a last checkbox, this one apart from the rest: SteamGifts turns the ⊕ of quick entry off on the giveaways that have a description, so that you open them and read it. Ticking it turns that button back on —and the ⊖ once you are in—, entering with the same call the giveaway’s own page makes. It is off by default because that description is where the creator puts their conditions, and from here you will not have read them. It is also the only thing in this script that writes to the site.',
                 '▸ Privacy',
                 'Nothing is sent to the author or to any third party. Everything you see on a page is arithmetic on what that page had already printed.',
-                '⚠ Two things go to the network, and both only to this same site, with your session, exactly as clicking a link on it would: "Load every page", when you press it, asks for the pages after this one; and the alerts, if you tick them, read the whole listing every 15 minutes —one request per page, 0.7s apart, and only from one tab—. Nothing else leaves your browser, and nothing at all is sent to the author.',
-                'What is stored, on your own machine: your keywords, the language you picked, and how you left the page — sorted by value or not, matches only or not, empty gaps folded or not, which side the widget sits on, and whether the widget and the matches panel are folded. With the alerts on it also keeps the list of giveaways it has alerted you about and which ones you marked as seen — that list is what stops the same game from alerting twice.',
+                '⚠ Three things go to the network, and all three only to this same site, with your session, exactly as clicking a link on it would: "Load every page", when you press it, asks for the pages after this one; the alerts, if you tick them, read the whole listing every 15 minutes —one request per page, 0.7s apart, and only from one tab—; and the forced quick entry, if you tick it, sends one entry —or one withdrawal— for each press of that button on a row. Nothing else leaves your browser, and nothing at all is sent to the author.',
+                'What is stored, on your own machine: your keywords, the language you picked, and how you left the page — sorted by value or not, matches only or not, empty gaps folded or not, quick entry forced or not, which side the widget sits on, and whether the widget and the matches panel are folded. With the alerts on it also keeps the list of giveaways it has alerted you about and which ones you marked as seen — that list is what stops the same game from alerting twice.',
             ],
             tipOdds: 'Real odds: {copies} copies shared between {entries} entries.',
             tipOddsOne: 'Real odds: a single copy shared between {entries} entries.',
@@ -167,8 +168,14 @@
             alertsFirstClick: 'The beep may need you to click the page once: browsers do not let a tab play sound before you interact with it.',
             matches: 'Your matches',
             matchesTip: 'Every giveaway on the page whose name matches your keywords, in the order they appear. Click one to jump to it — useful when the listing is twenty pages long and three of them are yours. It never opens the giveaway: for that, click its row in the listing as you normally would.',
-            matchesAlertTip: 'Your keyword matches, and the alerts among them. What turned up since you last looked comes first with a 🔔; the eye marks one as seen, the one in the header marks them all, and what you marked never alerts again. Click an entry to jump to its row — it never opens the giveaway, for that click the row itself as you normally would.',
+            matchesAlertTip: 'Your keyword matches, and the alerts among them. What turned up since you last looked comes first with a 🔔; clicking one marks its alert as seen — you have just looked at it — and so does the eye without moving the page, while the one in the header marks them all. What you marked never alerts again. Click an entry to jump to its row — it never opens the giveaway, for that click the row itself as you normally would.',
+            quick: 'Quick entry where the site turns it off',
+            quickTip: 'SteamGifts turns the ⊕ quick entry off on giveaways that have a description —the ones carrying the ≡ icon— so that you open the giveaway and read it. Tick this and the script turns it back on: pressing it enters with the same call the green button on that giveaway’s own page makes. It is off by default for a reason: the description is where the creator puts their conditions —comment to enter, region, do not resell— and entering from here means you have not read them. Once you are in, the ⊖ takes its place so you can take the entry back just as fast. If a call does not come back as expected it does not half-do it: the button turns red and says what the site answered.',
+            quickBtnTip: 'Enter this giveaway from here — you have not read its description',
+            quickDelTip: 'Take your entry back from here — the same call the giveaway page makes',
+            quickFail: 'the site did not accept it from here — open the giveaway to enter',
             jumpTip: 'Jump to this giveaway on the page',
+            jumpTipAlert: 'Jump to this giveaway on the page, and mark its alert as seen',
         },
         es: {
             oneIn: '1 de {n}',
@@ -240,10 +247,11 @@
                 'La única vista que sí recorta es «mostrar solo coincidencias», y recorta por tu lista de palabras, que el sitio no conoce. No quita nada: las filas siguen en la página, con su badge y su sitio en el orden, y al desmarcarla vuelven todas.',
                 'Y cuando algo casa, aparece al otro lado un segundo panel que las lista. Pulsa una para ir a ella: con veinte páginas cargadas, esa es la diferencia entre encontrar tus tres y bajar buscándolas.',
                 'Y una casilla convierte esas palabras en avisos: cada 15 minutos lee el listado de sorteos entero, página por página, y marca cada uno que casa en el panel de coincidencias —con campana, cuenta y pitido— en cualquier página de SteamGifts que tengas abierta —el foro incluido, que es justo donde no te enterarías por tu cuenta—. Y ya que ha leído esas páginas, las deja cargadas en el listado si estás en la portada sin nada filtrado, que es lo mismo que hace el botón de cargar, gratis. Pita cada 5 segundos hasta que lo marques como visto —ahí mismo, en el panel—, y lo marcado no vuelve a avisar. Esa pasada —el listado entero— la hace también en cada página que abres, no solo cada 15 minutos, y esas no reinician el reloj: el bucle cuenta desde su propia última pasada, así que llega a su hora aunque recargues sin parar. Marcarla o desmarcarla borra los avisos y revisa al momento. No hay notificaciones del escritorio a propósito: el aviso vive en esta pestaña, y pedir permiso de notificaciones no es algo que puedas deshacer desde aquí.',
+                'Y una última casilla, esta aparte de las demás: SteamGifts apaga el ⊕ de entrada rápida en los sorteos que tienen descripción, para que los abras y la leas. Marcarla vuelve a encender ese botón —y el ⊖ una vez estás dentro—, entrando con la misma llamada que hace la ficha de ese sorteo. Va apagada por defecto porque esa descripción es donde el creador pone sus condiciones, y desde aquí no las habrás leído. Es además lo único de este script que escribe en el sitio.',
                 '▸ Privacidad',
                 'No se envía nada al autor ni a ningún tercero. Todo lo que ves en una página son cuentas sobre lo que esa página ya había impreso.',
-                '⚠ Dos cosas salen a la red, y las dos solo a este mismo sitio, con tu sesión, igual que si pulsaras un enlace suyo: «Cargar todas las páginas», cuando la pulsas, pide las páginas siguientes a esta; y los avisos, si los marcas, leen el listado entero cada 15 minutos —una petición por página, cada 0,7 s, y solo desde una pestaña—. Nada más sale de tu navegador, y al autor no se le manda nada de nada.',
-                'Lo que se guarda, en tu propia máquina: tus palabras clave, el idioma que elegiste y cómo dejaste la página —ordenada por valor o no, solo coincidencias o no, huecos vacíos plegados o no, de qué lado está el widget, y si el widget y el panel de coincidencias están plegados—. Con los avisos puestos guarda además la lista de sorteos de los que te avisó y cuáles marcaste como vistos: esa lista es lo que evita que el mismo juego avise dos veces.',
+                '⚠ Tres cosas salen a la red, y las tres solo a este mismo sitio, con tu sesión, igual que si pulsaras un enlace suyo: «Cargar todas las páginas», cuando la pulsas, pide las páginas siguientes a esta; los avisos, si los marcas, leen el listado entero cada 15 minutos —una petición por página, cada 0,7 s, y solo desde una pestaña—; y la entrada rápida forzada, si la marcas, manda una entrada —o una salida— por cada pulsación de ese botón en una fila. Nada más sale de tu navegador, y al autor no se le manda nada de nada.',
+                'Lo que se guarda, en tu propia máquina: tus palabras clave, el idioma que elegiste y cómo dejaste la página —ordenada por valor o no, solo coincidencias o no, huecos vacíos plegados o no, entrada rápida forzada o no, de qué lado está el widget, y si el widget y el panel de coincidencias están plegados—. Con los avisos puestos guarda además la lista de sorteos de los que te avisó y cuáles marcaste como vistos: esa lista es lo que evita que el mismo juego avise dos veces.',
             ],
             tipOdds: 'Probabilidad real: {copies} copias repartidas entre {entries} entradas.',
             tipOddsOne: 'Probabilidad real: una sola copia repartida entre {entries} entradas.',
@@ -289,8 +297,14 @@
             alertsFirstClick: 'El pitido puede necesitar que pulses una vez en la página: los navegadores no dejan sonar a una pestaña con la que no has interactuado.',
             matches: 'Tus coincidencias',
             matchesTip: 'Los sorteos de la página cuyo nombre casa con tus palabras clave, en el orden en que aparecen. Pulsa uno para ir a él: sirve cuando el listado son veinte páginas y tres son tuyas. Nunca abre el sorteo: para eso pulsa su fila en el listado, como harías normalmente.',
-            matchesAlertTip: 'Tus coincidencias, y entre ellas los avisos. Lo que ha aparecido desde la última vez va primero con un 🔔; el ojo marca uno como visto, el de la cabecera marca todos, y lo marcado no vuelve a avisar. Pulsa una entrada para ir a su fila: nunca abre el sorteo, para eso pulsa la fila misma como harías normalmente.',
+            matchesAlertTip: 'Tus coincidencias, y entre ellas los avisos. Lo que ha aparecido desde la última vez va primero con un 🔔; pulsarlo marca su aviso como visto —acabas de mirarlo— y el ojo hace lo mismo sin mover la página, mientras el de la cabecera marca todos. Lo marcado no vuelve a avisar. Pulsa una entrada para ir a su fila: nunca abre el sorteo, para eso pulsa la fila misma como harías normalmente.',
+            quick: 'Entrar rápido donde el sitio lo apaga',
+            quickTip: 'SteamGifts apaga el ⊕ de entrada rápida en los sorteos que tienen descripción —los que llevan el icono ≡— para que abras la ficha y la leas. Al marcar esto, el script lo vuelve a encender: pulsarlo entra con la misma llamada que hace el botón verde de la ficha de ese sorteo. Va apagado por defecto y por un motivo: la descripción es donde el creador pone sus condiciones —comenta para entrar, región, no revender— y entrando desde aquí no las habrás leído. Una vez dentro, el ⊖ ocupa su sitio para poder salir igual de rápido. Si una llamada no vuelve como se espera no se queda a medias: el botón se pone en rojo y dice lo que contestó el sitio.',
+            quickBtnTip: 'Entrar en este sorteo desde aquí — no has leído su descripción',
+            quickDelTip: 'Quitar tu entrada desde aquí — la misma llamada que hace la ficha',
+            quickFail: 'el sitio no lo aceptó desde aquí — abre la ficha para entrar',
             jumpTip: 'Ir a este sorteo en la página',
+            jumpTipAlert: 'Ir a este sorteo en la página, y marcar su aviso como visto',
         },
     };
 
@@ -341,6 +355,27 @@
         promo: '.fanatical_container, ins.adsbygoogle',
         pagination: '.pagination',
         pagResults: '.pagination__results',
+        // La entrada rápida de una fila, verificada con el marcado real de una
+        // fila con descripción el 2026-09-01: el par de botones vive en un
+        // envoltorio propio, y el ⊕/⊖ son <div> con `data-do`, no <button>. El
+        // formulario que los acompaña trae los tres campos que hay que mandar
+        // —`xsrf_token`, `do` y `code`—, así que ninguno se inventa aquí. Lo
+        // que NO dice el marcado es a dónde: el form no tiene `action` y la
+        // pone el JS del sitio.
+        inner: '.giveaway__row-inner-wrap',
+        // La marca del sitio para el caso que esto arregla. Se pregunta por
+        // ella y no por qué botón está encendido: en un sorteo sin descripción
+        // los dos botones son suyos y funcionan, así que ahí no se toca nada.
+        quickDesc: '.giveaway__row-inner-wrap.has-description',
+        // Y la marca de «ya estás dentro», verificada con el marcado real de
+        // una fila entrada el 2026-09-01: es la fila la que se apaga con
+        // `is-faded`. El ⊖ NO recibe `is-active` nunca —lo lleva solo el ≡ de
+        // la descripción—, así que ese era el sitio equivocado donde mirar.
+        quickFaded: '.giveaway__row-inner-wrap.is-faded',
+        quickWrap: '.giveaway__quick-entry-wrap',
+        quickForm: '.giveaway__quick-entry-form',
+        quickInsert: '.giveaway__quick-entry-btn--insert',
+        quickDelete: '.giveaway__quick-entry-btn--delete',
     };
 
     // Tope de puntos de la cuenta: por encima no se acumula nada.
@@ -367,6 +402,11 @@
     const SIDE_KEY = 'sgpv-side';
     const MMIN_KEY = 'sgpv-mmin';
     const ONLY_KEY = 'sgpv-only';
+    // Encender el ⊕ que el propio sitio apaga en los sorteos con descripción.
+    // Apagada por defecto: es la única cosa del script que ESCRIBE en el sitio
+    // sin que hayas pulsado un control suyo, y se salta la pantalla donde el
+    // creador pone sus condiciones.
+    const QUICK_KEY = 'sgpv-quick';
 
     // Avisos de sorteos nuevos que casan con tus palabras. No tienen panel
     // propio: viven en el de coincidencias, que es el sitio donde ya se
@@ -903,6 +943,172 @@
     }
 
     // ------------------------------------------------------------------
+    // Entrada rápida donde el sitio la apaga
+    // ------------------------------------------------------------------
+    // Lo tercero del script que sale a la red, y lo único que ESCRIBE. Detrás
+    // de su casilla, apagada por defecto.
+    //
+    // El ⊕ de una fila con descripción no está roto ni ausente: está DORMIDO.
+    // El sitio pinta el par entero —⊕ y ⊖— y le da `is-active` solo al ≡ de
+    // «View Description», así que el par apagado es la firma exacta de «este
+    // sorteo tiene descripción, ábrela». Por eso encender esto no busca una
+    // clase de "deshabilitado" que no existe: solo toca las filas donde
+    // NINGUNO de los dos está activo, y deja en paz las que el sitio ya
+    // decidió —el ⊕ verde de un sorteo sin descripción y el ⊖ de uno en el
+    // que ya estás—.
+    //
+    // La URL es el único dato que no está en el marcado. `/ajax.php` es la que
+    // usa el sitio; si un día no lo fuera, la respuesta no sería la esperada y
+    // el botón lo diría —para eso está `quickFailed`— en vez de fingir que
+    // entró.
+    const QUICK_AJAX = '/ajax.php';
+    const QUICK_MARK = 'sgpvQuick';
+    const QUICK_UITIP = 'data-sgpv-uitip';
+    const QUICK_FAIL = 'sgpv-quick--fail';
+
+    function quickBtnsOf(row) {
+        const wrap = row.querySelector(SEL.quickWrap);
+        if (!wrap) return null;
+        const insert = wrap.querySelector(SEL.quickInsert);
+        if (!insert) return null;
+        return { wrap, insert, del: wrap.querySelector(SEL.quickDelete) };
+    }
+
+    function quickFailed(btn, msg) {
+        btn.classList.add(QUICK_FAIL);
+        btn.classList.remove('is-active');
+        // El motivo lo da el sitio y se enseña tal cual: aquí no se adivina si
+        // fue el nivel, la región o un token caducado. Sin etiquetas, que en
+        // un `title` se leerían literales.
+        btn.title = t('quickFail') + (msg ? '\n' + String(msg).replace(/<[^>]*>/g, '').trim() : '');
+    }
+
+    // Cuál de las dos acciones es este botón lo dice el SITIO, en su propio
+    // `data-do`: no se deduce de la clase ni del orden en el DOM.
+    function quickAction(btn) {
+        return btn.dataset.do === 'entry_delete' ? 'entry_delete' : 'entry_insert';
+    }
+
+    function quickTitle(btn) {
+        btn.title = t(quickAction(btn) === 'entry_delete' ? 'quickDelTip' : 'quickBtnTip');
+    }
+
+    function quickDone(row, btn, action, data) {
+        // El estado se apunta donde lo apunta el sitio: `is-faded` en la
+        // fila. De ahí sale cuál de los dos botones toca ofrecer, y quién los
+        // enciende y apaga es `wireQuick` en el repintado, no esto.
+        const inner = row.querySelector(SEL.inner);
+        if (inner) inner.classList.toggle('is-faded', action === 'entry_insert');
+        // El saldo solo se toca si la respuesta lo trae, y conservando el
+        // formato de la cabecera —"339P"—: se sustituyen sus dígitos, no el
+        // nodo. Si no viniera, se queda el viejo hasta la siguiente carga, que
+        // es mejor que escribir un número inventado. Sirve para las dos
+        // acciones: al salir, los puntos vuelven.
+        const points = document.querySelector(SEL.navPoints);
+        const left = data && data.points;
+        if (points && (typeof left === 'number' || (typeof left === 'string' && /^[\d,.]+$/.test(left)))) {
+            points.textContent = points.textContent.replace(/[\d,.]+/, String(left));
+        }
+        run();
+    }
+
+    async function quickSend(row, btn) {
+        const action = quickAction(btn);
+        const form = row.querySelector(SEL.quickForm);
+        const token = form && form.querySelector('input[name="xsrf_token"]');
+        const codeEl = form && form.querySelector('input[name="code"]');
+        const code = (codeEl && codeEl.value) || rowCode(row);
+        if (!token || !token.value || !code) { quickFailed(btn, null); return; }
+        let data = null;
+        try {
+            const res = await fetch(QUICK_AJAX, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                body: new URLSearchParams({
+                    xsrf_token: token.value, do: action, code,
+                }).toString(),
+            });
+            if (res.ok) data = await res.json();
+        } catch (e) { data = null; }
+        if (!data || data.type !== 'success') {
+            quickFailed(btn, data && (data.msg || data.message));
+            return;
+        }
+        quickDone(row, btn, action, data);
+    }
+
+    function onQuickClick(ev) {
+        // En captura y cortando la propagación: el sitio engancha sus botones
+        // por delegación, y sin esto el mismo clic mandaría dos veces la misma
+        // acción —la suya y la nuestra—.
+        ev.preventDefault();
+        ev.stopPropagation();
+        const btn = ev.currentTarget;
+        const row = btn.closest(SEL.row);
+        if (!row || btn.dataset.sgpvBusy === '1') return;
+        btn.dataset.sgpvBusy = '1';
+        btn.classList.remove(QUICK_FAIL);
+        quickSend(row, btn).then(() => { delete btn.dataset.sgpvBusy; });
+    }
+
+    function quickWire(btn) {
+        btn.dataset[QUICK_MARK] = '1';
+        btn.addEventListener('click', onQuickClick, true);
+        // El aviso del sitio dice «Enter Giveaway» y aquí eso se queda corto,
+        // así que se guarda el suyo y se pone el nuestro: un solo cuadro, y el
+        // que advierte de lo que no has leído.
+        const ui = btn.getAttribute('data-ui-tooltip');
+        if (ui !== null) { btn.setAttribute(QUICK_UITIP, ui); btn.removeAttribute('data-ui-tooltip'); }
+        quickTitle(btn);
+    }
+
+    function quickUnwire(btn) {
+        btn.removeEventListener('click', onQuickClick, true);
+        delete btn.dataset[QUICK_MARK];
+        delete btn.dataset.sgpvBusy;
+        btn.classList.remove('is-active', QUICK_FAIL);
+        btn.removeAttribute('title');
+        const ui = btn.getAttribute(QUICK_UITIP);
+        if (ui !== null) { btn.setAttribute('data-ui-tooltip', ui); btn.removeAttribute(QUICK_UITIP); }
+    }
+
+    function wireQuick(list) {
+        const on = recall(QUICK_KEY) === '1';
+        list.forEach(g => {
+            const b = quickBtnsOf(g.row);
+            if (!b) return;
+            // Solo las filas que el sitio marca con `has-description`, que son
+            // exactamente las que apaga. En las demás los dos botones son
+            // suyos y responden: ahí no se toca nada.
+            const desc = !!g.row.querySelector(SEL.quickDesc);
+            // Estar dentro lo dice la fila apagada, la pinte así el servidor
+            // o la hayamos apagado nosotros al entrar. De eso depende cuál de
+            // los dos se ofrece: nunca los dos a la vez, igual que el sitio.
+            // Si algún día `is-faded` significara otra cosa —un sorteo que no
+            // puedes tocar por otro motivo—, lo que pasa es que se ofrece el ⊖
+            // y el sitio contesta que no; el botón se pone rojo con su motivo,
+            // que es el fallo que se ve y no el que engaña.
+            const entered = !!g.row.querySelector(SEL.quickFaded);
+            const live = (on && desc) ? (entered ? b.del : b.insert) : null;
+            [b.insert, b.del].forEach(btn => {
+                if (!btn) return;
+                if (btn === live) {
+                    if (btn.dataset[QUICK_MARK] !== '1') quickWire(btn);
+                    // Una fila que acaba de fallar se queda en rojo y clicable:
+                    // reintentar es del usuario, no de la pasada de repintado.
+                    if (!btn.classList.contains(QUICK_FAIL)) {
+                        btn.classList.add('is-active');
+                        quickTitle(btn);
+                    }
+                } else if (btn.dataset[QUICK_MARK] === '1') {
+                    quickUnwire(btn);
+                }
+            });
+        });
+    }
+
+    // ------------------------------------------------------------------
     // Avisos de sorteos nuevos
     // ------------------------------------------------------------------
     // Lo segundo del script que sale a la red, y como lo primero, solo si lo
@@ -1307,6 +1513,27 @@
         body.appendChild(holesRow);
     }
 
+    // Misma forma que la de los huecos vacíos, y por el mismo motivo va detrás
+    // de una casilla apagada por defecto: lo que arregla no lo rompió el
+    // script, y aquí además lo apagó el sitio a propósito. La diferencia con
+    // las otras tres casillas es que esta no cambia una VISTA: escribe en
+    // SteamGifts. Por eso no se pinta en la ficha de un sorteo —ahí el botón
+    // verde del propio sitio ya está— ni se enciende sola nunca.
+    function buildQuickCheck(host) {
+        const row = el('label', 'sgpv-w__check');
+        const box = el('input');
+        box.type = 'checkbox';
+        box.checked = recall(QUICK_KEY) === '1';
+        box.addEventListener('change', () => {
+            store(QUICK_KEY, box.checked ? '1' : null);
+            run();
+        });
+        row.appendChild(box);
+        row.appendChild(el('span', null, t('quick')));
+        row.title = t('quickTip');
+        host.appendChild(row);
+    }
+
     // Misma forma que las otras dos casillas, y por el mismo motivo se queda
     // inerte en vez de irse cuando no hay palabras: sin ninguna no hay de qué
     // avisar, y una casilla que desaparece mueve de sitio todo lo de debajo.
@@ -1709,6 +1936,7 @@
             // ocultaría el listado entero, que no es una vista, es un error.
             buildOnlyCheck(body, splitKeywords(readKeywords()).positive.length > 0);
             buildHolesCheck(body);
+            buildQuickCheck(body);
         }
         // Esta sí va también en la ficha de un sorteo: los avisos no son del
         // listado que tengas delante, son de lo que aparece en el sitio.
@@ -1860,8 +2088,17 @@
             const go = el(it.g ? 'button' : 'div', 'sgpv-m__go');
             if (it.g) {
                 go.type = 'button';
-                go.title = t('jumpTip');
-                go.addEventListener('click', () => jumpTo(it.g));
+                go.title = t(it.alert ? 'jumpTipAlert' : 'jumpTip');
+                // Ir al sorteo ES haberlo mirado, así que el aviso se apaga
+                // aquí también: si no, el pitido seguía sonando por un sorteo
+                // que ya tienes delante y había que volver al panel a pulsar
+                // el ojo. El ojo se queda porque no es lo mismo: marca sin
+                // mover la página. El salto va PRIMERO —marcar repinta el
+                // panel entero y destruye este botón—.
+                go.addEventListener('click', () => {
+                    jumpTo(it.g);
+                    if (it.alert) markAlertSeen(it.alert.code);
+                });
             } else {
                 go.title = t('alertsElsewhere');
                 go.classList.add('sgpv-m__go--flat');
@@ -2435,6 +2672,26 @@
             '#' + WIDGET_ID + ' .sgpv-w__check input{flex:0 0 auto;width:13px;height:13px;',
             'margin:0;padding:0;cursor:pointer;accent-color:#4b72d4;float:none;position:static;}',
             '#' + WIDGET_ID + ' .sgpv-w__check span{flex:1 1 auto;min-width:0;}',
+            // El ⊕ que enciende la casilla. `is-active` NO era lo que lo
+            // apagaba —el ≡ la lleva y sale gris igual—, así que el estado
+            // apagado se desanda aquí, sin depender de qué regla del sitio lo
+            // pone: mano, opacidad y el verde de su propio icono.
+            //
+            // `pointer-events:auto` es la pieza que importa y va en el hijo a
+            // propósito: si el sitio mata los clics en el formulario padre,
+            // esta propiedad se puede reactivar desde dentro —es de las pocas
+            // que un descendiente sí puede devolver—, y sin ella el listener
+            // no llegaba a dispararse nunca.
+            '.giveaway__quick-entry-btn[data-sgpv-quick]{cursor:pointer;',
+            'pointer-events:auto !important;opacity:1 !important;visibility:visible !important;}',
+            // Cada acción con el color que el propio sitio le da en su tooltip:
+            // verde para entrar, ámbar para salir. No se fuerza `display`: en la
+            // fila apagada el sitio ya enseña el ⊖ por su cuenta, y tocarlo
+            // movería su maquetación sin necesidad.
+            '.giveaway__quick-entry-btn[data-sgpv-quick][data-do="entry_insert"] i{color:#3d8b37 !important;}',
+            '.giveaway__quick-entry-btn[data-sgpv-quick][data-do="entry_delete"] i{color:#e0a92e !important;}',
+            '.giveaway__quick-entry-btn.' + QUICK_FAIL + '{cursor:help;opacity:1;}',
+            '.giveaway__quick-entry-btn.' + QUICK_FAIL + ' i{color:#c26a6a;}',
             '#' + WIDGET_ID + ' .sgpv-w__check--off{opacity:.45;cursor:default;}',
             '#' + WIDGET_ID + ' .sgpv-w__check--off input{cursor:default;}',
             '#' + WIDGET_ID + ' .sgpv-w__lang{display:flex;align-items:center;justify-content:space-between;',
@@ -2637,6 +2894,7 @@
         });
         rankAll(list);
         list.forEach(paint);
+        wireQuick(list);
         foldEmptyBlocks(list);
         const solo = parseSingle();
         if (solo) {
