@@ -1,6 +1,6 @@
 # SteamGifts Points Value
 
-Tampermonkey userscript that works out the real odds of every SteamGifts giveaway and what they cost you in points. / Userscript de Tampermonkey que calcula la probabilidad real de cada sorteo de SteamGifts y lo que te cuesta en puntos.
+Userscript that works out the real odds of every SteamGifts giveaway and what they cost you in points. / Userscript que calcula la probabilidad real de cada sorteo de SteamGifts y lo que te cuesta en puntos.
 
 ![The listing in the site's own order: odds and value per point on every row, the widget on the left with the sort button still unpressed](docs/screenshot-listing.png)
 
@@ -44,7 +44,7 @@ Details worth knowing:
 **Language:** English and Spanish only — the site itself exists in one language, so there is no point going further. Picked from your browser's languages, and overridable from the widget. SteamGifts pins `<html lang="en">` for everyone because its interface only exists in English, so the document's own language would be useless here.
 
 **Install:**
-1. Install [Tampermonkey](https://www.tampermonkey.net/).
+1. Install a userscript manager: [Violentmonkey](https://violentmonkey.github.io/) (open source, Chrome/Edge/Firefox) or [Tampermonkey](https://www.tampermonkey.net/). On Chrome and Edge, also turn on **Allow user scripts** on the extension's own page in `chrome://extensions` — without it nothing runs.
 2. Open the installer: [steamgifts-points-value.user.js](https://github.com/g31w0fw0rld/steamgifts-points-value/raw/main/steamgifts-points-value.user.js) (also on [GreasyFork](https://greasyfork.org/es-419/users/1590477-g31w) and [OpenUserJS](https://openuserjs.org/users/g31w0fw0rldgmail.com/scripts)).
 
 **Sites:** `www.steamgifts.com/*`
@@ -77,7 +77,7 @@ Detalles que conviene saber:
 **Idioma:** solo inglés y español —el propio sitio existe en un solo idioma, así que no tiene sentido ir más allá—. Se elige por los idiomas de tu navegador y se puede forzar desde el widget. SteamGifts fija `<html lang="en">` para todo el mundo porque su interfaz solo existe en inglés, así que el idioma del documento no serviría de nada aquí.
 
 **Instalación:**
-1. Instala [Tampermonkey](https://www.tampermonkey.net/).
+1. Instala un gestor de userscripts: [Violentmonkey](https://violentmonkey.github.io/) (código abierto, Chrome/Edge/Firefox) o [Tampermonkey](https://www.tampermonkey.net/). En Chrome y Edge, activa además **Allow user scripts** en la página de la propia extensión en `chrome://extensions`; sin eso no se ejecuta nada.
 2. Abre el instalador: [steamgifts-points-value.user.js](https://github.com/g31w0fw0rld/steamgifts-points-value/raw/main/steamgifts-points-value.user.js) (también en [GreasyFork](https://greasyfork.org/es-419/users/1590477-g31w) y [OpenUserJS](https://openuserjs.org/users/g31w0fw0rldgmail.com/scripts)).
 
 **Sitios:** `www.steamgifts.com/*`
