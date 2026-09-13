@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         SteamGifts Points Value (odds & cost per giveaway)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.0
-// @description  Works out the real odds of every open SteamGifts giveaway — copies against entries, not the entry count alone — and what those odds cost you in points, so you can see where your balance is worth spending. Adds odds and value per point to each row and to the giveaway page, sorts the listing by value, and shows a widget with your balance, your level and how far the next one is. Filtering by level, library or already-entered is left to the site's own settings, which do it server-side.
+// @version      1.3.1
+// @description  Odds and cost for SteamGifts giveaways. The site shows entries and not your odds —300 entries with ten copies beat 50 with one— and never what those odds are costing you in points, which is the whole question when your balance is finite. This works both out on every row and inside the giveaway, and sorts the listing by them. It reads the site's own pages and enters nothing for you. The rest is in "Learn more" and in the repository.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAMKADAAQAAAABAAAAMAAAAADbN2wMAAACK0lEQVRoBe1ayUoDQRRMXC8uUYzgggi5iooXLwG/Qv/Bg1cFBf0H8SvyDRERvAgejHdBQT1ExfWgImpVSGQykOlKSHemYR5UZsnjVVX3ZDrT0+lUfWRxOA/kgCVgFRgFOhkPIC8A58AlUAIegbroxdEecAf8xhw30LcNdAP/sYu9uAsP69uqqR/DTtlDA7fQnOnCxyLAa9+3mITgORqY9U15QG+OBpYDJ3zbHU9D8Qsw5Jvyqt4Ce8BX8fSQ7ak6aWZzjeQT4ALgnYA9+An8AM0EG68fyABTAAfQPDADqFHhDN9fGx1/oOomMKJWbyGPo/4O8AU00hE8XyRH8ETUPsW7CnVglQ3wshl0pR487GXlb02R16ESx0h6UxLblPOEOvydGUM1UDJWan+CxKkaYHe6DolTNfDuWj34JE7VAG9rrkPiVA18u1YPPolTNdAB/ZXxycgbZwNG8UxIDEjNZDEp6QGLjSuVTnpAaiaLSUkPWGxcqXSce4AzJsZQDbTy8G8kNyRInKqBPgOZja8lTtXAgA2FhpoSp2qAE6muQ+JUDSy4Vg8+iVM1sIKCrqdV8kqjqQY43beuFGxTzgbqTKi1ombjgt/FcmqRgwVFNhOcpWvn5O4w6k0DrUzuHrZioBmztnOP+Bt4tc1isf49DfAlsq9xRgOnvqqH7jINXHlsgEsPUt6/6OZiigMPe2Efmp9rur1d7BF+6gkvt1mDQ5sv9WoNGLWNXG7zB+tQbrTPTOPxAAAAAElFTkSuQmCC
 // @match        https://www.steamgifts.com/*
 // @author       g31w0fw0rld
@@ -15,7 +15,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.3.0';
+    const SCRIPT_VERSION = '1.3.1';
 
     // ------------------------------------------------------------------
     // i18n

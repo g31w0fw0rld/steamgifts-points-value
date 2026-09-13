@@ -2,6 +2,12 @@
 
 Userscript that works out the real odds of every SteamGifts giveaway and what they cost you in points. / Userscript que calcula la probabilidad real de cada sorteo de SteamGifts y lo que te cuesta en puntos.
 
+**⚡ Quick install / Instalación rápida:** **[Install / Instalar](https://github.com/g31w0fw0rld/steamgifts-points-value/raw/main/steamgifts-points-value.user.js)** — also on / también en [GreasyFork](https://greasyfork.org/scripts/592110) · [OpenUserJS](https://openuserjs.org/scripts/g31w0fw0rldgmail.com/SteamGifts_Points_Value_%28odds_cost_per_giveaway%29).
+
+> You need a userscript manager first: [Violentmonkey](https://violentmonkey.github.io/) (open source) or [Tampermonkey](https://www.tampermonkey.net/). On Chrome and Edge, also turn on **Allow user scripts** on the extension's own page in `chrome://extensions` — without it nothing runs. Step-by-step under [English](#english).
+>
+> Necesitas antes un gestor de userscripts: [Violentmonkey](https://violentmonkey.github.io/) (código abierto) o [Tampermonkey](https://www.tampermonkey.net/). En Chrome y Edge, activa además **Allow user scripts** en la página de la propia extensión en `chrome://extensions`; sin eso no se ejecuta nada. Pasos detallados en [Español](#español).
+
 ![The listing in the site's own order: odds and value per point on every row, the widget on the left with the sort button still unpressed](docs/screenshot-listing.png)
 
 *The listing as you land on it: odds and value per point on every row, in the site's own order, and the widget with your balance, your level, what is within reach, the best value on the page, your keywords and the four checkboxes. It folds to its header, and one button there moves it to the other side. / El listado tal como llegas a él: probabilidad y valor por punto en cada fila, en el orden del propio sitio, y el widget con tu saldo, tu nivel, lo que te alcanza, el mejor valor de la página, tus palabras clave y las cuatro casillas. Se pliega a su cabecera, y un botón de ahí lo pasa al otro lado.*
@@ -45,7 +51,7 @@ Details worth knowing:
 
 **Install:**
 1. Install a userscript manager: [Violentmonkey](https://violentmonkey.github.io/) (open source, Chrome/Edge/Firefox) or [Tampermonkey](https://www.tampermonkey.net/). On Chrome and Edge, also turn on **Allow user scripts** on the extension's own page in `chrome://extensions` — without it nothing runs.
-2. Open the installer: [steamgifts-points-value.user.js](https://github.com/g31w0fw0rld/steamgifts-points-value/raw/main/steamgifts-points-value.user.js) (also on [GreasyFork](https://greasyfork.org/es-419/users/1590477-g31w) and [OpenUserJS](https://openuserjs.org/users/g31w0fw0rldgmail.com/scripts)).
+2. Open the installer: [steamgifts-points-value.user.js](https://github.com/g31w0fw0rld/steamgifts-points-value/raw/main/steamgifts-points-value.user.js) (also on [GreasyFork](https://greasyfork.org/scripts/592110) and [OpenUserJS](https://openuserjs.org/scripts/g31w0fw0rldgmail.com/SteamGifts_Points_Value_%28odds_cost_per_giveaway%29)).
 
 **Sites:** `www.steamgifts.com/*`
 
@@ -78,7 +84,7 @@ Detalles que conviene saber:
 
 **Instalación:**
 1. Instala un gestor de userscripts: [Violentmonkey](https://violentmonkey.github.io/) (código abierto, Chrome/Edge/Firefox) o [Tampermonkey](https://www.tampermonkey.net/). En Chrome y Edge, activa además **Allow user scripts** en la página de la propia extensión en `chrome://extensions`; sin eso no se ejecuta nada.
-2. Abre el instalador: [steamgifts-points-value.user.js](https://github.com/g31w0fw0rld/steamgifts-points-value/raw/main/steamgifts-points-value.user.js) (también en [GreasyFork](https://greasyfork.org/es-419/users/1590477-g31w) y [OpenUserJS](https://openuserjs.org/users/g31w0fw0rldgmail.com/scripts)).
+2. Abre el instalador: [steamgifts-points-value.user.js](https://github.com/g31w0fw0rld/steamgifts-points-value/raw/main/steamgifts-points-value.user.js) (también en [GreasyFork](https://greasyfork.org/scripts/592110) y [OpenUserJS](https://openuserjs.org/scripts/g31w0fw0rldgmail.com/SteamGifts_Points_Value_%28odds_cost_per_giveaway%29)).
 
 **Sitios:** `www.steamgifts.com/*`
 
